@@ -1,6 +1,4 @@
 /*
-Package example provided support for local file system.
+Package oss provided support for Aliyun Object Storage Service (https://cn.aliyun.com/product/oss)
 */
-package example
-
-//go:generate definitions service.hcl
+package oss
