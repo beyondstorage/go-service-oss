@@ -22,7 +22,7 @@ jobs:
 
       - name: Test
         env:
-          STORAGE_S3_CREDENTIAL: ${{ secrets.STORAGE_S3_CREDENTIAL }}
-          STORAGE_S3_NAME: ${{ secrets.STORAGE_S3_NAME }}
-          STORAGE_S3_LOCATION: ${{ secrets.STORAGE_S3_LOCATION }}
+          STORAGE_OSS_CREDENTIAL: ${{ secrets.STORAGE_OSS_CREDENTIAL }}
+          STORAGE_OSS_NAME: ${{ secrets.STORAGE_OSS_NAME }}
+          STORAGE_OSS_ENDPOINT: ${{ secrets.STORAGE_OSS_ENDPOINT }}
         run: make integration_test
