@@ -1,7 +1,6 @@
 package oss
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -22,10 +21,7 @@ type Service struct {
 
 // String implements Servicer.String
 func (s *Service) String() string {
-	if s.service == nil {
-		return fmt.Sprintf("Servicer oss")
-	}
-	return fmt.Sprintf("Servicer oss {AccessKey: %s}", s.service.Config.AccessKeyID)
+	return fmt.Sprintf("Servicer oss")
 }
 
 // Storage is the aliyun object storage service.
@@ -61,6 +57,7 @@ func NewStorager(pairs ...typ.Pair) (typ.Storager, error) {
 	_, store, err := newServicerAndStorager(pairs...)
 	return store, err
 }
+
 func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	defer func() {
 		if err != nil {
@@ -89,9 +86,12 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, err
 	}
 
-	srv.service, err = oss.New(ep.String(), ak, sk,
-		oss.HTTPClient(httpclient.New(opt.HTTPClientOptions)),
-	)
+	var copts []oss.ClientOption
+	if opt.HasHTTPClientOptions {
+		copts = append(copts, oss.HTTPClient(httpclient.New(opt.HTTPClientOptions)))
+	}
+
+	srv.service, err = oss.New(ep.String(), ak, sk, copts...)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +112,6 @@ func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, er
 
 	store, err = srv.newStorage(pairs...)
 	if err != nil {
-		if e := services.NewPairRequiredError(); errors.As(err, &e) {
-			return srv, nil, nil
-		}
 		return nil, nil, err
 	}
 	return srv, store, nil

@@ -7,7 +7,7 @@ required = ["credential"]
 optional = ["endpoint", "http_client_options", "pair_policy"]
 
 [namespace.storage.new]
-required = ["location", "name"]
+required = ["name"]
 optional = ["work_dir"]
 
 [namespace.storage.op.list]
