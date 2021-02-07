@@ -3,12 +3,12 @@ package oss
 import (
 	"context"
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
-	ps "github.com/aos-dev/go-storage/v2/types/pairs"
 
-	"github.com/aos-dev/go-storage/v2"
+	ps "github.com/aos-dev/go-storage/v3/pairs"
+	typ "github.com/aos-dev/go-storage/v3/types"
 )
 
-func (s *Service) create(ctx context.Context, name string, opt *pairServiceCreate) (store storage.Storager, err error) {
+func (s *Service) create(ctx context.Context, name string, opt *pairServiceCreate) (store typ.Storager, err error) {
 	st, err := s.newStorage(ps.WithName(name))
 	if err != nil {
 		return nil, err
@@ -19,6 +19,7 @@ func (s *Service) create(ctx context.Context, name string, opt *pairServiceCreat
 	}
 	return st, nil
 }
+
 func (s *Service) delete(ctx context.Context, name string, opt *pairServiceDelete) (err error) {
 	err = s.service.DeleteBucket(name)
 	if err != nil {
@@ -26,37 +27,47 @@ func (s *Service) delete(ctx context.Context, name string, opt *pairServiceDelet
 	}
 	return nil
 }
-func (s *Service) get(ctx context.Context, name string, opt *pairServiceGet) (store storage.Storager, err error) {
+
+func (s *Service) get(ctx context.Context, name string, opt *pairServiceGet) (store typ.Storager, err error) {
 	st, err := s.newStorage(ps.WithName(name))
 	if err != nil {
 		return nil, err
 	}
 	return st, nil
 }
-func (s *Service) list(ctx context.Context, opt *pairServiceList) (err error) {
-	marker := ""
-	var output oss.ListBucketsResult
-	for {
-		output, err = s.service.ListBuckets(
-			oss.Marker(marker),
-			oss.MaxKeys(1000),
-		)
+
+func (s *Service) list(ctx context.Context, opt *pairServiceList) (it *typ.StoragerIterator, err error) {
+	input := &storagePageStatus{
+		maxKeys: 200,
+	}
+
+	return typ.NewStoragerIterator(ctx, s.nextStoragePage, input), nil
+}
+
+func (s *Service) nextStoragePage(ctx context.Context, page *typ.StoragerPage) error {
+	input := page.Status.(*storagePageStatus)
+
+	output, err := s.service.ListBuckets(
+		oss.Marker(input.marker),
+		oss.MaxKeys(input.maxKeys),
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.Buckets {
+		store, err := s.newStorage(ps.WithName(v.Name))
 		if err != nil {
 			return err
 		}
 
-		for _, v := range output.Buckets {
-			store, err := s.newStorage(ps.WithName(v.Name))
-			if err != nil {
-				return err
-			}
-			opt.StoragerFunc(store)
-		}
-
-		marker = output.NextMarker
-		if output.IsTruncated {
-			break
-		}
+		page.Data = append(page.Data, store)
 	}
+
+	if !output.IsTruncated {
+		return typ.IterateDone
+	}
+
+	input.marker = output.NextMarker
 	return nil
 }

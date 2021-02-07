@@ -2,16 +2,16 @@ package oss
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strconv"
 	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 
-	"github.com/aos-dev/go-storage/v2/pkg/headers"
-	"github.com/aos-dev/go-storage/v2/pkg/iowrap"
-	"github.com/aos-dev/go-storage/v2/types"
-	"github.com/aos-dev/go-storage/v2/types/info"
+	"github.com/aos-dev/go-storage/v3/pkg/headers"
+	"github.com/aos-dev/go-storage/v3/pkg/iowrap"
+	. "github.com/aos-dev/go-storage/v3/types"
 )
 
 func (s *Storage) delete(ctx context.Context, path string, opt *pairStorageDelete) (err error) {
@@ -23,110 +23,121 @@ func (s *Storage) delete(ctx context.Context, path string, opt *pairStorageDelet
 	}
 	return nil
 }
-func (s *Storage) listDir(ctx context.Context, dir string, opt *pairStorageListDir) (err error) {
-	marker := ""
-	delimiter := "/"
-	limit := 200
 
-	rp := s.getAbsPath(dir)
-
-	var output oss.ListObjectsResult
-	for {
-		output, err = s.bucket.ListObjects(
-			oss.Marker(marker),
-			oss.MaxKeys(limit),
-			oss.Prefix(rp),
-			oss.Delimiter(delimiter),
-		)
-		if err != nil {
-			return err
-		}
-
-		if opt.HasDirFunc {
-			for _, v := range output.CommonPrefixes {
-				o := &types.Object{
-					ID:         v,
-					Name:       s.getRelPath(v),
-					Type:       types.ObjectTypeDir,
-					ObjectMeta: info.NewObjectMeta(),
-				}
-
-				opt.DirFunc(o)
-			}
-		}
-
-		if opt.HasFileFunc {
-			for _, v := range output.Objects {
-				o, err := s.formatFileObject(v)
-				if err != nil {
-					return err
-				}
-
-				opt.FileFunc(o)
-			}
-		}
-
-		marker = output.NextMarker
-		if !output.IsTruncated {
-			break
-		}
+func (s *Storage) list(ctx context.Context, path string, opt *pairStorageList) (oi *ObjectIterator, err error) {
+	input := &objectPageStatus{
+		maxKeys: 200,
+		prefix:  s.getAbsPath(path),
 	}
-	return
-}
-func (s *Storage) listPrefix(ctx context.Context, prefix string, opt *pairStorageListPrefix) (err error) {
-	marker := ""
-	limit := 200
 
-	rp := s.getAbsPath(prefix)
+	var nextFn NextObjectFunc
 
-	var output oss.ListObjectsResult
-	for {
-		output, err = s.bucket.ListObjects(
-			oss.Marker(marker),
-			oss.MaxKeys(limit),
-			oss.Prefix(rp),
-		)
-		if err != nil {
-			return err
-		}
-
-		for _, v := range output.Objects {
-			o, err := s.formatFileObject(v)
-			if err != nil {
-				return err
-			}
-
-			opt.ObjectFunc(o)
-		}
-
-		marker = output.NextMarker
-		if !output.IsTruncated {
-			break
-		}
+	switch {
+	case opt.ListMode.IsDir():
+		input.delimiter = "/"
+		nextFn = s.nextObjectPageByDir
+	case opt.ListMode.IsPrefix():
+		nextFn = s.nextObjectPageByPrefix
+	default:
+		return nil, fmt.Errorf("invalid list mode")
 	}
-	return
+
+	return NewObjectIterator(ctx, nextFn, input), nil
 }
-func (s *Storage) metadata(ctx context.Context, opt *pairStorageMetadata) (meta info.StorageMeta, err error) {
-	meta = info.NewStorageMeta()
+
+func (s *Storage) metadata(ctx context.Context, opt *pairStorageMetadata) (meta *StorageMeta, err error) {
+	meta = NewStorageMeta()
 	meta.Name = s.bucket.BucketName
 	meta.WorkDir = s.workDir
 	return
 }
-func (s *Storage) read(ctx context.Context, path string, opt *pairStorageRead) (rc io.ReadCloser, err error) {
+
+func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) error {
+	input := page.Status.(*objectPageStatus)
+
+	output, err := s.bucket.ListObjects(
+		oss.Marker(input.marker),
+		oss.MaxKeys(input.maxKeys),
+		oss.Prefix(input.prefix),
+		oss.Delimiter(input.delimiter),
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.CommonPrefixes {
+		o := s.newObject(true)
+		o.ID = v
+		o.Path = s.getRelPath(v)
+		o.Mode |= ModeDir
+
+		page.Data = append(page.Data, o)
+	}
+
+	for _, v := range output.Objects {
+		o, err := s.formatFileObject(v)
+		if err != nil {
+			return err
+		}
+
+		page.Data = append(page.Data, o)
+	}
+
+	if !output.IsTruncated {
+		return IterateDone
+	}
+
+	input.marker = output.NextMarker
+	return nil
+}
+
+func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
+	input := page.Status.(*objectPageStatus)
+
+	output, err := s.bucket.ListObjects(
+		oss.Marker(input.marker),
+		oss.MaxKeys(input.maxKeys),
+		oss.Prefix(input.prefix),
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.Objects {
+		o, err := s.formatFileObject(v)
+		if err != nil {
+			return err
+		}
+
+		page.Data = append(page.Data, o)
+	}
+
+	if !output.IsTruncated {
+		return IterateDone
+	}
+
+	input.marker = output.NextMarker
+	return nil
+}
+
+func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt *pairStorageRead) (n int64, err error) {
 	rp := s.getAbsPath(path)
 
 	output, err := s.bucket.GetObject(rp)
 	if err != nil {
-		return nil, err
+		return 0, err
+	}
+	defer output.Close()
+
+	rc := output
+	if opt.HasIoCallback {
+		rc = iowrap.CallbackReadCloser(output, opt.IoCallback)
 	}
 
-	if opt.HasReadCallbackFunc {
-		output = iowrap.CallbackReadCloser(output, opt.ReadCallbackFunc)
-	}
-
-	return output, nil
+	return io.Copy(w, rc)
 }
-func (s *Storage) stat(ctx context.Context, path string, opt *pairStorageStat) (o *types.Object, err error) {
+
+func (s *Storage) stat(ctx context.Context, path string, opt *pairStorageStat) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
 	output, err := s.bucket.GetObjectMeta(rp)
@@ -134,19 +145,17 @@ func (s *Storage) stat(ctx context.Context, path string, opt *pairStorageStat) (
 		return nil, err
 	}
 
-	o = &types.Object{
-		ID:         rp,
-		Name:       path,
-		Type:       types.ObjectTypeFile,
-		ObjectMeta: info.NewObjectMeta(),
-	}
+	o = s.newObject(true)
+	o.ID = rp
+	o.Path = path
+	o.Mode |= ModeRead
 
 	if v := output.Get(headers.ContentLength); v != "" {
 		size, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		o.Size = size
+		o.SetContentLength(size)
 	}
 
 	if v := output.Get(headers.LastModified); v != "" {
@@ -154,45 +163,48 @@ func (s *Storage) stat(ctx context.Context, path string, opt *pairStorageStat) (
 		if err != nil {
 			return nil, err
 		}
-		o.UpdatedAt = lastModified
+		o.SetLastModified(lastModified)
 	}
 
 	// OSS advise us don't use Etag as Content-MD5.
 	//
 	// ref: https://help.aliyun.com/document_detail/31965.html
 	if v := output.Get(headers.ETag); v != "" {
-		o.SetETag(v)
+		o.SetEtag(v)
 	}
 
 	if v := output.Get(headers.ContentType); v != "" {
 		o.SetContentType(v)
 	}
 
+	sm := make(map[string]string)
 	if v := output.Get(storageClassHeader); v != "" {
-		setStorageClass(o.ObjectMeta, v)
+		sm[MetadataStorageClass] = v
 	}
+	o.SetServiceMetadata(sm)
 
 	return o, nil
 }
-func (s *Storage) write(ctx context.Context, path string, r io.Reader, opt *pairStorageWrite) (err error) {
-	options := make([]oss.Option, 0)
-	options = append(options, oss.ContentLength(opt.Size))
-	if opt.HasChecksum {
-		options = append(options, oss.ContentMD5(opt.Checksum))
-	}
-	if opt.HasStorageClass {
-		// TODO: we need to handle different storage class name between services.
-		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
-	}
-	if opt.HasReadCallbackFunc {
-		r = iowrap.CallbackReader(r, opt.ReadCallbackFunc)
+
+func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int64, opt *pairStorageWrite) (n int64, err error) {
+	if opt.HasIoCallback {
+		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
 
 	rp := s.getAbsPath(path)
 
+	options := make([]oss.Option, 0)
+	options = append(options, oss.ContentLength(size))
+	if opt.HasContentMd5 {
+		options = append(options, oss.ContentMD5(opt.ContentMd5))
+	}
+	if opt.HasStorageClass {
+		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
+	}
+
 	err = s.bucket.PutObject(rp, r, options...)
 	if err != nil {
-		return err
+		return
 	}
-	return nil
+	return size, nil
 }
