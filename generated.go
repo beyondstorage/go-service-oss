@@ -304,10 +304,8 @@ type pairStorageNew struct {
 	pairs []Pair
 
 	// Required pairs
-	HasLocation bool
-	Location    string
-	HasName     bool
-	Name        string
+	HasName bool
+	Name    string
 	// Optional pairs
 	HasWorkDir bool
 	WorkDir    string
@@ -323,9 +321,6 @@ func parsePairStorageNew(opts []Pair) (*pairStorageNew, error) {
 	for _, v := range opts {
 		switch v.Key {
 		// Required pairs
-		case "location":
-			result.HasLocation = true
-			result.Location = v.Value.(string)
 		case "name":
 			result.HasName = true
 			result.Name = v.Value.(string)
@@ -335,9 +330,6 @@ func parsePairStorageNew(opts []Pair) (*pairStorageNew, error) {
 			result.WorkDir = v.Value.(string)
 			// Generated pairs
 		}
-	}
-	if !result.HasLocation {
-		return nil, services.NewPairRequiredError("location")
 	}
 	if !result.HasName {
 		return nil, services.NewPairRequiredError("name")
