@@ -8,7 +8,7 @@ import (
 	typ "github.com/aos-dev/go-storage/v3/types"
 )
 
-func (s *Service) create(ctx context.Context, name string, opt *pairServiceCreate) (store typ.Storager, err error) {
+func (s *Service) create(ctx context.Context, name string, opt pairServiceCreate) (store typ.Storager, err error) {
 	st, err := s.newStorage(ps.WithName(name))
 	if err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func (s *Service) create(ctx context.Context, name string, opt *pairServiceCreat
 	return st, nil
 }
 
-func (s *Service) delete(ctx context.Context, name string, opt *pairServiceDelete) (err error) {
+func (s *Service) delete(ctx context.Context, name string, opt pairServiceDelete) (err error) {
 	err = s.service.DeleteBucket(name)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (s *Service) delete(ctx context.Context, name string, opt *pairServiceDelet
 	return nil
 }
 
-func (s *Service) get(ctx context.Context, name string, opt *pairServiceGet) (store typ.Storager, err error) {
+func (s *Service) get(ctx context.Context, name string, opt pairServiceGet) (store typ.Storager, err error) {
 	st, err := s.newStorage(ps.WithName(name))
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (s *Service) get(ctx context.Context, name string, opt *pairServiceGet) (st
 	return st, nil
 }
 
-func (s *Service) list(ctx context.Context, opt *pairServiceList) (it *typ.StoragerIterator, err error) {
+func (s *Service) list(ctx context.Context, opt pairServiceList) (it *typ.StoragerIterator, err error) {
 	input := &storagePageStatus{
 		maxKeys: 200,
 	}
