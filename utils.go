@@ -17,6 +17,8 @@ import (
 // Service is the aliyun oss *Service config.
 type Service struct {
 	service *oss.Client
+
+	defaultPairs DefaultServicePairs
 }
 
 // String implements Servicer.String
@@ -31,7 +33,8 @@ type Storage struct {
 	name    string
 	workDir string
 
-	pairPolicy typ.PairPolicy
+	defaultPairs DefaultStoragePairs
+	pairPolicy   typ.PairPolicy
 }
 
 // String implements Storager.String
@@ -96,6 +99,9 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, err
 	}
 
+	if opt.HasDefaultServicePairs {
+		srv.defaultPairs = opt.DefaultServicePairs
+	}
 	return
 }
 func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, err error) {
@@ -174,6 +180,12 @@ func (s *Service) newStorage(pairs ...typ.Pair) (st *Storage, err error) {
 		workDir: "/",
 	}
 
+	if opt.HasDefaultStoragePairs {
+		store.defaultPairs = opt.DefaultStoragePairs
+	}
+	if opt.HasPairPolicy {
+		store.pairPolicy = opt.PairPolicy
+	}
 	if opt.HasWorkDir {
 		store.workDir = opt.WorkDir
 	}
