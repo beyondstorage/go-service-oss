@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
@@ -25,29 +26,19 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorageCreateAppend) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
-	var nextPos int64 = 0
-	isExist, err := s.bucket.IsObjectExist(rp)
+	options := make([]oss.Option, 0)
+	options = append(options, oss.ContentLength(0))
+
+	offset, err := s.bucket.AppendObject(rp, strings.NewReader(""), 0, options...)
 	if err != nil {
 		return
-	}
-
-	if isExist {
-		props, errGetMeta := s.bucket.GetObjectDetailedMeta(rp)
-		if errGetMeta != nil {
-			err = errGetMeta
-			return
-		}
-		nextPos, err = strconv.ParseInt(props.Get(oss.HTTPHeaderOssNextAppendPosition), 10, 64)
-		if err != nil {
-			return
-		}
 	}
 
 	o = s.newObject(true)
 	o.Mode = ModeRead | ModeAppend
 	o.ID = rp
 	o.Path = path
-	o.SetAppendOffset(nextPos)
+	o.SetAppendOffset(offset)
 	return o, nil
 }
 
@@ -263,17 +254,22 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 
 func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size int64, opt pairStorageWriteAppend) (n int64, err error) {
 	rp := o.GetID()
-	nextPos := o.MustGetAppendOffset()
+
+	offset, ok := o.GetAppendOffset()
+	if !ok {
+		err = fmt.Errorf("append offset is not set")
+		return
+	}
 
 	options := make([]oss.Option, 0)
 	options = append(options, oss.ContentLength(size))
 
-	nextPos, err = s.bucket.AppendObject(rp, r, nextPos, options...)
+	offset, err = s.bucket.AppendObject(rp, r, offset, options...)
 	if err != nil {
 		return
 	}
 
-	o.SetAppendOffset(nextPos)
+	o.SetAppendOffset(offset)
 
-	return nextPos, err
+	return offset, err
 }
