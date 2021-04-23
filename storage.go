@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
@@ -24,21 +23,11 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 }
 
 func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorageCreateAppend) (o *Object, err error) {
-	rp := s.getAbsPath(path)
-
-	options := make([]oss.Option, 0)
-	options = append(options, oss.ContentLength(0))
-
-	offset, err := s.bucket.AppendObject(rp, strings.NewReader(""), 0, options...)
-	if err != nil {
-		return
-	}
-
-	o = s.newObject(true)
+	o = s.newObject(false)
 	o.Mode = ModeRead | ModeAppend
-	o.ID = rp
+	o.ID = s.getAbsPath(path)
 	o.Path = path
-	o.SetAppendOffset(offset)
+	o.SetAppendOffset(0)
 	return o, nil
 }
 
