@@ -9,7 +9,7 @@ jobs:
 
     strategy:
       matrix:
-        go: [ "1.14", "1.15" ]
+        go: [ "1.15", "1.16" ]
 
     steps:
       - name: Set up Go 1.x
@@ -22,6 +22,7 @@ jobs:
 
       - name: Test
         env:
+          STORAGE_OSS_INTEGRATION_TEST: ${{ secrets.STORAGE_INTEGRATION_TEST }}
           STORAGE_OSS_CREDENTIAL: ${{ secrets.STORAGE_OSS_CREDENTIAL }}
           STORAGE_OSS_NAME: ${{ secrets.STORAGE_OSS_NAME }}
           STORAGE_OSS_ENDPOINT: ${{ secrets.STORAGE_OSS_ENDPOINT }}

@@ -267,3 +267,15 @@ func (s *Storage) formatFileObject(v oss.ObjectProperties) (o *typ.Object, err e
 func (s *Storage) newObject(done bool) *typ.Object {
 	return typ.NewObject(s, done)
 }
+
+// All available encryption algorithms are listed here.
+const (
+	serverSideEncryptionHeader      = "x-oss-server-side-encryption"
+	serverSideEncryptionKeyIdHeader = "x-oss-server-side-encryption-key-id"
+
+	ServerSideEncryptionAES256 = "AES256"
+	ServerSideEncryptionKMS    = "KMS"
+	ServerSideEncryptionSM4    = "SM4"
+
+	ServerSideDataEncryptionSM4 = "SM4"
+)

@@ -27,12 +27,30 @@ const (
 	pairDefaultServicePairs = "oss_default_service_pairs"
 	// DefaultStoragePairs set default pairs for storager actions
 	pairDefaultStoragePairs = "oss_default_storage_pairs"
+	// ServerSideDataEncryption specifies the encryption algorithm when server_side_encryption is KMS. Can only be set to SM4. If this is not set, AES256 will be used.
+	//
+	// For Chinese users, refer to https://help.aliyun.com/document_detail/31871.html for details.
+	//
+	// For global users, refer to https://www.alibabacloud.com/help/doc-detail/31871.htm for details, and double-check whether SM4 can be used.
+	pairServerSideDataEncryption = "oss_server_side_data_encryption"
+	// ServerSideEncryption specifies the encryption algorithm. Can be AES256, KMS or SM4.
+	//
+	// For Chinese users, refer to https://help.aliyun.com/document_detail/31871.html for details.
+	//
+	// For global users, refer to https://www.alibabacloud.com/help/doc-detail/31871.htm for details, and double-check whether SM4 can be used.
+	pairServerSideEncryption = "oss_server_side_encryption"
+	// ServerSideEncryptionKeyID is the KMS-managed user master key. Only valid when server_side_encryption is KMS.
+	pairServerSideEncryptionKeyID = "oss_server_side_encryption_key_id"
 	// StorageClass
 	pairStorageClass = "oss_storage_class"
 )
 
 // Service available metadata.
 const (
+	MetadataServerSideEncryption = "oss-server_side_encryption"
+
+	MetadataServerSideEncryptionKeyID = "oss-server_side_encryption_key_id"
+
 	MetadataStorageClass = "oss-storage-class"
 )
 
@@ -50,6 +68,41 @@ func WithDefaultServicePairs(v DefaultServicePairs) Pair {
 func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 	return Pair{
 		Key:   pairDefaultStoragePairs,
+		Value: v,
+	}
+}
+
+// WithServerSideDataEncryption will apply server_side_data_encryption value to Options
+// ServerSideDataEncryption specifies the encryption algorithm when server_side_encryption is KMS. Can only be set to SM4. If this is not set, AES256 will be used.
+//
+// For Chinese users, refer to https://help.aliyun.com/document_detail/31871.html for details.
+//
+// For global users, refer to https://www.alibabacloud.com/help/doc-detail/31871.htm for details, and double-check whether SM4 can be used.
+func WithServerSideDataEncryption(v string) Pair {
+	return Pair{
+		Key:   pairServerSideDataEncryption,
+		Value: v,
+	}
+}
+
+// WithServerSideEncryption will apply server_side_encryption value to Options
+// ServerSideEncryption specifies the encryption algorithm. Can be AES256, KMS or SM4.
+//
+// For Chinese users, refer to https://help.aliyun.com/document_detail/31871.html for details.
+//
+// For global users, refer to https://www.alibabacloud.com/help/doc-detail/31871.htm for details, and double-check whether SM4 can be used.
+func WithServerSideEncryption(v string) Pair {
+	return Pair{
+		Key:   pairServerSideEncryption,
+		Value: v,
+	}
+}
+
+// WithServerSideEncryptionKeyID will apply server_side_encryption_key_id value to Options
+// ServerSideEncryptionKeyID is the KMS-managed user master key. Only valid when server_side_encryption is KMS.
+func WithServerSideEncryptionKeyID(v string) Pair {
+	return Pair{
+		Key:   pairServerSideEncryptionKeyID,
 		Value: v,
 	}
 }
@@ -677,14 +730,20 @@ type pairStorageWrite struct {
 
 	// Required pairs
 	// Optional pairs
-	HasContentMd5   bool
-	ContentMd5      string
-	HasContentType  bool
-	ContentType     string
-	HasIoCallback   bool
-	IoCallback      func([]byte)
-	HasStorageClass bool
-	StorageClass    string
+	HasContentMd5                bool
+	ContentMd5                   string
+	HasContentType               bool
+	ContentType                  string
+	HasIoCallback                bool
+	IoCallback                   func([]byte)
+	HasServerSideDataEncryption  bool
+	ServerSideDataEncryption     string
+	HasServerSideEncryption      bool
+	ServerSideEncryption         string
+	HasServerSideEncryptionKeyID bool
+	ServerSideEncryptionKeyID    string
+	HasStorageClass              bool
+	StorageClass                 string
 	// Generated pairs
 }
 
@@ -707,6 +766,15 @@ func (s *Storage) parsePairStorageWrite(opts []Pair) (pairStorageWrite, error) {
 		case "io_callback":
 			result.HasIoCallback = true
 			result.IoCallback = v.Value.(func([]byte))
+		case pairServerSideDataEncryption:
+			result.HasServerSideDataEncryption = true
+			result.ServerSideDataEncryption = v.Value.(string)
+		case pairServerSideEncryption:
+			result.HasServerSideEncryption = true
+			result.ServerSideEncryption = v.Value.(string)
+		case pairServerSideEncryptionKeyID:
+			result.HasServerSideEncryptionKeyID = true
+			result.ServerSideEncryptionKeyID = v.Value.(string)
 		case pairStorageClass:
 			result.HasStorageClass = true
 			result.StorageClass = v.Value.(string)
