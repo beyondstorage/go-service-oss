@@ -189,6 +189,12 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if v := output.Get(storageClassHeader); v != "" {
 		sm[MetadataStorageClass] = v
 	}
+	if v := output.Get(serverSideEncryptionHeader); v != "" {
+		sm[MetadataServerSideEncryption] = v
+	}
+	if v := output.Get(serverSideEncryptionKeyIdHeader); v != "" {
+		sm[MetadataServerSideEncryptionKeyID] = v
+	}
 	o.SetServiceMetadata(sm)
 
 	return o, nil
@@ -208,6 +214,15 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 	}
 	if opt.HasStorageClass {
 		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
+	}
+	if opt.HasServerSideEncryption {
+		options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
+	}
+	if opt.HasServerSideDataEncryption {
+		options = append(options, oss.ServerSideDataEncryption(opt.ServerSideDataEncryption))
+	}
+	if opt.HasServerSideEncryptionKeyID {
+		options = append(options, oss.ServerSideEncryptionKeyID(opt.ServerSideEncryptionKeyID))
 	}
 
 	err = s.bucket.PutObject(rp, r, options...)
