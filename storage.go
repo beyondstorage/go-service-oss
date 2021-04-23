@@ -22,6 +22,35 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 	return o
 }
 
+func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorageCreateAppend) (o *Object, err error) {
+	rp := s.getAbsPath(path)
+
+	var nextPos int64 = 0
+	isExist, err := s.bucket.IsObjectExist(rp)
+	if err != nil {
+		return
+	}
+
+	if isExist {
+		props, errGetMeta := s.bucket.GetObjectDetailedMeta(rp)
+		if errGetMeta != nil {
+			err = errGetMeta
+			return
+		}
+		nextPos, err = strconv.ParseInt(props.Get(oss.HTTPHeaderOssNextAppendPosition), 10, 64)
+		if err != nil {
+			return
+		}
+	}
+
+	o = s.newObject(true)
+	o.Mode = ModeRead | ModeAppend
+	o.ID = rp
+	o.Path = path
+	o.SetAppendOffset(nextPos)
+	return o, nil
+}
+
 func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete) (err error) {
 	rp := s.getAbsPath(path)
 
@@ -215,4 +244,21 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 		return
 	}
 	return size, nil
+}
+
+func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size int64, opt pairStorageWriteAppend) (n int64, err error) {
+	rp := o.GetID()
+	nextPos := o.MustGetAppendOffset()
+
+	options := make([]oss.Option, 0)
+	options = append(options, oss.ContentLength(size))
+
+	nextPos, err = s.bucket.AppendObject(rp, r, nextPos, options...)
+	if err != nil {
+		return
+	}
+
+	o.SetAppendOffset(nextPos)
+
+	return nextPos, err
 }

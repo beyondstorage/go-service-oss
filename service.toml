@@ -6,6 +6,9 @@ name = "oss"
 required = ["credential"]
 optional = ["default_service_pairs", "endpoint", "http_client_options"]
 
+[namespace.storage]
+implement = ["appender"]
+
 [namespace.storage.new]
 required = ["name"]
 optional = ["default_storage_pairs", "pair_policy", "work_dir"]
