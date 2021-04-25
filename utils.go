@@ -39,6 +39,7 @@ type Storage struct {
 	pairPolicy   typ.PairPolicy
 
 	typ.UnimplementedStorager
+	typ.UnimplementedAppender
 }
 
 // String implements Storager.String
