@@ -23,7 +23,7 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 }
 
 func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorageCreateAppend) (o *Object, err error) {
-	o = s.newObject(false)
+	o = s.newObject(true)
 	o.Mode = ModeRead | ModeAppend
 	o.ID = s.getAbsPath(path)
 	o.Path = path
@@ -194,15 +194,15 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		o.SetContentType(v)
 	}
 
-	sm := make(map[string]string)
+	var sm ObjectMetadata
 	if v := output.Get(storageClassHeader); v != "" {
-		sm[MetadataStorageClass] = v
+		sm.StorageClass = v
 	}
 	if v := output.Get(serverSideEncryptionHeader); v != "" {
-		sm[MetadataServerSideEncryption] = v
+		sm.ServerSideEncryption = v
 	}
 	if v := output.Get(serverSideEncryptionKeyIdHeader); v != "" {
-		sm[MetadataServerSideEncryptionKeyID] = v
+		sm.ServerSideEncryptionKeyID = v
 	}
 	o.SetServiceMetadata(sm)
 
@@ -252,6 +252,15 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 
 	options := make([]oss.Option, 0)
 	options = append(options, oss.ContentLength(size))
+	if opt.HasServerSideEncryption {
+		options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
+	}
+	if opt.HasServerSideDataEncryption {
+		options = append(options, oss.ServerSideDataEncryption(opt.ServerSideDataEncryption))
+	}
+	if opt.HasServerSideEncryptionKeyID {
+		options = append(options, oss.ServerSideEncryptionKeyID(opt.ServerSideEncryptionKeyID))
+	}
 
 	offset, err = s.bucket.AppendObject(rp, r, offset, options...)
 	if err != nil {

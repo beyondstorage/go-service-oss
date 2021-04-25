@@ -45,14 +45,34 @@ const (
 	pairStorageClass = "oss_storage_class"
 )
 
-// Service available metadata.
-const (
-	MetadataServerSideEncryption = "oss-server_side_encryption"
+// ObjectMetadata stores service metadata for object.
+type ObjectMetadata struct {
+	// ServerSideEncryption
+	ServerSideEncryption string
+	// ServerSideEncryptionKeyID
+	ServerSideEncryptionKeyID string
+	// StorageClass
+	StorageClass string
+}
 
-	MetadataServerSideEncryptionKeyID = "oss-server_side_encryption_key_id"
+// GetObjectMetadata will get ObjectMetadata from Object.
+//
+// - This function should not be called by service implementer.
+// - The returning ObjectMetadata is read only and should not be modified.
+func GetObjectMetadata(o *Object) ObjectMetadata {
+	om, ok := o.GetServiceMetadata()
+	if ok {
+		return om.(ObjectMetadata)
+	}
+	return ObjectMetadata{}
+}
 
-	MetadataStorageClass = "oss-storage-class"
-)
+// setObjectMetadata will set ObjectMetadata into Object.
+//
+// - This function should only be called once, please make sure all data has been written before set.
+func setObjectMetadata(o *Object, om ObjectMetadata) {
+	o.SetServiceMetadata(om)
+}
 
 // WithDefaultServicePairs will apply default_service_pairs value to Options
 // DefaultServicePairs set default pairs for service actions
@@ -797,6 +817,12 @@ type pairStorageWriteAppend struct {
 
 	// Required pairs
 	// Optional pairs
+	HasServerSideDataEncryption  bool
+	ServerSideDataEncryption     string
+	HasServerSideEncryption      bool
+	ServerSideEncryption         string
+	HasServerSideEncryptionKeyID bool
+	ServerSideEncryptionKeyID    string
 	// Generated pairs
 }
 
@@ -810,6 +836,15 @@ func (s *Storage) parsePairStorageWriteAppend(opts []Pair) (pairStorageWriteAppe
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairServerSideDataEncryption:
+			result.HasServerSideDataEncryption = true
+			result.ServerSideDataEncryption = v.Value.(string)
+		case pairServerSideEncryption:
+			result.HasServerSideEncryption = true
+			result.ServerSideEncryption = v.Value.(string)
+		case pairServerSideEncryptionKeyID:
+			result.HasServerSideEncryptionKeyID = true
+			result.ServerSideEncryptionKeyID = v.Value.(string)
 		// Generated pairs
 		default:
 
