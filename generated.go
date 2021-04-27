@@ -74,7 +74,8 @@ func setObjectMetadata(o *Object, om ObjectMetadata) {
 	o.SetServiceMetadata(om)
 }
 
-// WithDefaultServicePairs will apply default_service_pairs value to Options
+// WithDefaultServicePairs will apply default_service_pairs value to Options.
+//
 // DefaultServicePairs set default pairs for service actions
 func WithDefaultServicePairs(v DefaultServicePairs) Pair {
 	return Pair{
@@ -83,7 +84,8 @@ func WithDefaultServicePairs(v DefaultServicePairs) Pair {
 	}
 }
 
-// WithDefaultStoragePairs will apply default_storage_pairs value to Options
+// WithDefaultStoragePairs will apply default_storage_pairs value to Options.
+//
 // DefaultStoragePairs set default pairs for storager actions
 func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 	return Pair{
@@ -92,7 +94,8 @@ func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 	}
 }
 
-// WithServerSideDataEncryption will apply server_side_data_encryption value to Options
+// WithServerSideDataEncryption will apply server_side_data_encryption value to Options.
+//
 // ServerSideDataEncryption specifies the encryption algorithm when server_side_encryption is KMS. Can only be set to SM4. If this is not set, AES256 will be used.
 //
 // For Chinese users, refer to https://help.aliyun.com/document_detail/31871.html for details.
@@ -105,7 +108,8 @@ func WithServerSideDataEncryption(v string) Pair {
 	}
 }
 
-// WithServerSideEncryption will apply server_side_encryption value to Options
+// WithServerSideEncryption will apply server_side_encryption value to Options.
+//
 // ServerSideEncryption specifies the encryption algorithm. Can be AES256, KMS or SM4.
 //
 // For Chinese users, refer to https://help.aliyun.com/document_detail/31871.html for details.
@@ -118,7 +122,8 @@ func WithServerSideEncryption(v string) Pair {
 	}
 }
 
-// WithServerSideEncryptionKeyID will apply server_side_encryption_key_id value to Options
+// WithServerSideEncryptionKeyID will apply server_side_encryption_key_id value to Options.
+//
 // ServerSideEncryptionKeyID is the KMS-managed user master key. Only valid when server_side_encryption is KMS.
 func WithServerSideEncryptionKeyID(v string) Pair {
 	return Pair{
@@ -127,7 +132,8 @@ func WithServerSideEncryptionKeyID(v string) Pair {
 	}
 }
 
-// WithStorageClass will apply storage_class value to Options
+// WithStorageClass will apply storage_class value to Options.
+//
 // StorageClass
 func WithStorageClass(v string) Pair {
 	return Pair{
@@ -489,6 +495,7 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 
 // DefaultStoragePairs is default pairs for specific action
 type DefaultStoragePairs struct {
+	CommitAppend []Pair
 	Create       []Pair
 	CreateAppend []Pair
 	Delete       []Pair
@@ -498,6 +505,38 @@ type DefaultStoragePairs struct {
 	Stat         []Pair
 	Write        []Pair
 	WriteAppend  []Pair
+}
+
+// pairStorageCommitAppend is the parsed struct
+type pairStorageCommitAppend struct {
+	pairs []Pair
+
+	// Required pairs
+	// Optional pairs
+	// Generated pairs
+}
+
+// parsePairStorageCommitAppend will parse Pair slice into *pairStorageCommitAppend
+func (s *Storage) parsePairStorageCommitAppend(opts []Pair) (pairStorageCommitAppend, error) {
+	result := pairStorageCommitAppend{
+		pairs: opts,
+	}
+
+	for _, v := range opts {
+		switch v.Key {
+		// Required pairs
+		// Optional pairs
+		// Generated pairs
+		default:
+
+			if s.pairPolicy.All || s.pairPolicy.CommitAppend {
+				return pairStorageCommitAppend{}, services.NewPairUnsupportedError(v)
+			}
+
+		}
+	}
+
+	return result, nil
 }
 
 // pairStorageCreate is the parsed struct
@@ -856,6 +895,31 @@ func (s *Storage) parsePairStorageWriteAppend(opts []Pair) (pairStorageWriteAppe
 	}
 
 	return result, nil
+}
+
+// CommitAppend will commit and finish an append process.
+//
+// This function will create a context by default.
+func (s *Storage) CommitAppend(o *Object, pairs ...Pair) (err error) {
+	ctx := context.Background()
+	return s.CommitAppendWithContext(ctx, o, pairs...)
+}
+
+// CommitAppendWithContext will commit and finish an append process.
+func (s *Storage) CommitAppendWithContext(ctx context.Context, o *Object, pairs ...Pair) (err error) {
+	pairs = append(pairs, s.defaultPairs.CommitAppend...)
+	var opt pairStorageCommitAppend
+
+	defer func() {
+		err = s.formatError("commit_append", err)
+	}()
+
+	opt, err = s.parsePairStorageCommitAppend(pairs)
+	if err != nil {
+		return
+	}
+
+	return s.commitAppend(ctx, o, opt)
 }
 
 // Create will create a new object without any api call.
