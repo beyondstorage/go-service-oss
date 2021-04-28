@@ -27,11 +27,36 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 }
 
 func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorageCreateAppend) (o *Object, err error) {
+	rp := s.getAbsPath(path)
+
+	options := make([]oss.Option, 0)
+	options = append(options, oss.ContentLength(0))
+	if opt.HasContentType {
+		options = append(options, oss.ContentType(opt.ContentType))
+	}
+	if opt.HasStorageClass {
+		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
+	}
+	if opt.HasServerSideEncryption {
+		options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
+	}
+	if opt.HasServerSideDataEncryption {
+		options = append(options, oss.ServerSideDataEncryption(opt.ServerSideDataEncryption))
+	}
+	if opt.HasServerSideEncryptionKeyID {
+		options = append(options, oss.ServerSideEncryptionKeyID(opt.ServerSideEncryptionKeyID))
+	}
+
+	offset, err := s.bucket.AppendObject(rp, nil, 0, options...)
+	if err != nil {
+		return
+	}
+
 	o = s.newObject(true)
 	o.Mode = ModeRead | ModeAppend
-	o.ID = s.getAbsPath(path)
+	o.ID = rp
 	o.Path = path
-	o.SetAppendOffset(0)
+	o.SetAppendOffset(offset)
 	return o, nil
 }
 
@@ -246,7 +271,16 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 }
 
 func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size int64, opt pairStorageWriteAppend) (n int64, err error) {
+	if !o.Mode.IsAppend() {
+		err = fmt.Errorf("object not appendable")
+		return
+	}
+
 	rp := o.GetID()
+
+	if opt.HasIoCallback {
+		r = iowrap.CallbackReader(r, opt.IoCallback)
+	}
 
 	offset, ok := o.GetAppendOffset()
 	if !ok {
@@ -256,14 +290,8 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 
 	options := make([]oss.Option, 0)
 	options = append(options, oss.ContentLength(size))
-	if opt.HasServerSideEncryption {
-		options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
-	}
-	if opt.HasServerSideDataEncryption {
-		options = append(options, oss.ServerSideDataEncryption(opt.ServerSideDataEncryption))
-	}
-	if opt.HasServerSideEncryptionKeyID {
-		options = append(options, oss.ServerSideEncryptionKeyID(opt.ServerSideEncryptionKeyID))
+	if opt.HasContentMd5 {
+		options = append(options, oss.ContentMD5(opt.ContentMd5))
 	}
 
 	offset, err = s.bucket.AppendObject(rp, r, offset, options...)
