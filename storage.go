@@ -63,7 +63,7 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete) (err error) {
 	rp := s.getAbsPath(path)
 
-	// OSS DeleteObject is idempotent.
+	// OSS DeleteObject is idempotent, so we don't need to check NoSuchKey error.
 	//
 	// References
 	// - [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
