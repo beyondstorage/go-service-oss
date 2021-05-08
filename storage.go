@@ -63,6 +63,11 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete) (err error) {
 	rp := s.getAbsPath(path)
 
+	// OSS DeleteObject is idempotent.
+	//
+	// References
+	// - [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
+	// - https://help.aliyun.com/document_detail/31982.html
 	err = s.bucket.DeleteObject(rp)
 	if err != nil {
 		return err
@@ -301,5 +306,5 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 
 	o.SetAppendOffset(offset)
 
-	return offset, err
+	return size, err
 }
