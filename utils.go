@@ -40,6 +40,7 @@ type Storage struct {
 
 	typ.UnimplementedStorager
 	typ.UnimplementedAppender
+	typ.UnimplementedMultiparter
 }
 
 // String implements Storager.String
@@ -85,7 +86,7 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, err
 	}
 	if cp.Protocol() != credential.ProtocolHmac {
-		return nil, services.NewPairUnsupportedError(ps.WithCredential(opt.Credential))
+		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}
 	ak, sk := cp.Hmac()
 
@@ -279,3 +280,20 @@ const (
 
 	ServerSideDataEncryptionSM4 = "SM4"
 )
+
+// OSS response error code.
+//
+// ref: https://error-center.alibabacloud.com/status/product/Oss
+const (
+	// responseCodeNoSuchUpload will be returned while the specified upload does not exist.
+	responseCodeNoSuchUpload = "NoSuchUpload"
+)
+
+func checkError(err error, code string) bool {
+	e, ok := err.(oss.ServiceError)
+	if !ok {
+		return false
+	}
+
+	return e.Code == code
+}

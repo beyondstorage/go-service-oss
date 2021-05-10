@@ -197,7 +197,7 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 		}
 	}
 	if !result.HasCredential {
-		return pairServiceNew{}, services.NewPairRequiredError("credential")
+		return pairServiceNew{}, services.PairRequiredError{Keys: []string{"credential"}}
 	}
 
 	return result, nil
@@ -487,7 +487,7 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 		}
 	}
 	if !result.HasName {
-		return pairStorageNew{}, services.NewPairRequiredError("name")
+		return pairStorageNew{}, services.PairRequiredError{Keys: []string{"name"}}
 	}
 
 	return result, nil
@@ -495,16 +495,20 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 
 // DefaultStoragePairs is default pairs for specific action
 type DefaultStoragePairs struct {
-	CommitAppend []Pair
-	Create       []Pair
-	CreateAppend []Pair
-	Delete       []Pair
-	List         []Pair
-	Metadata     []Pair
-	Read         []Pair
-	Stat         []Pair
-	Write        []Pair
-	WriteAppend  []Pair
+	CommitAppend      []Pair
+	CompleteMultipart []Pair
+	Create            []Pair
+	CreateAppend      []Pair
+	CreateMultipart   []Pair
+	Delete            []Pair
+	List              []Pair
+	ListMultipart     []Pair
+	Metadata          []Pair
+	Read              []Pair
+	Stat              []Pair
+	Write             []Pair
+	WriteAppend       []Pair
+	WriteMultipart    []Pair
 }
 
 // pairStorageCommitAppend is the parsed struct
@@ -530,7 +534,39 @@ func (s *Storage) parsePairStorageCommitAppend(opts []Pair) (pairStorageCommitAp
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.CommitAppend {
-				return pairStorageCommitAppend{}, services.NewPairUnsupportedError(v)
+				return pairStorageCommitAppend{}, services.PairUnsupportedError{Pair: v}
+			}
+
+		}
+	}
+
+	return result, nil
+}
+
+// pairStorageCompleteMultipart is the parsed struct
+type pairStorageCompleteMultipart struct {
+	pairs []Pair
+
+	// Required pairs
+	// Optional pairs
+	// Generated pairs
+}
+
+// parsePairStorageCompleteMultipart will parse Pair slice into *pairStorageCompleteMultipart
+func (s *Storage) parsePairStorageCompleteMultipart(opts []Pair) (pairStorageCompleteMultipart, error) {
+	result := pairStorageCompleteMultipart{
+		pairs: opts,
+	}
+
+	for _, v := range opts {
+		switch v.Key {
+		// Required pairs
+		// Optional pairs
+		// Generated pairs
+		default:
+
+			if s.pairPolicy.All || s.pairPolicy.CompleteMultipart {
+				return pairStorageCompleteMultipart{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -562,7 +598,7 @@ func (s *Storage) parsePairStorageCreate(opts []Pair) (pairStorageCreate, error)
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Create {
-				return pairStorageCreate{}, services.NewPairUnsupportedError(v)
+				return pairStorageCreate{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -619,7 +655,64 @@ func (s *Storage) parsePairStorageCreateAppend(opts []Pair) (pairStorageCreateAp
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.CreateAppend {
-				return pairStorageCreateAppend{}, services.NewPairUnsupportedError(v)
+				return pairStorageCreateAppend{}, services.PairUnsupportedError{Pair: v}
+			}
+
+		}
+	}
+
+	return result, nil
+}
+
+// pairStorageCreateMultipart is the parsed struct
+type pairStorageCreateMultipart struct {
+	pairs []Pair
+
+	// Required pairs
+	// Optional pairs
+	HasContentType               bool
+	ContentType                  string
+	HasServerSideDataEncryption  bool
+	ServerSideDataEncryption     string
+	HasServerSideEncryption      bool
+	ServerSideEncryption         string
+	HasServerSideEncryptionKeyID bool
+	ServerSideEncryptionKeyID    string
+	HasStorageClass              bool
+	StorageClass                 string
+	// Generated pairs
+}
+
+// parsePairStorageCreateMultipart will parse Pair slice into *pairStorageCreateMultipart
+func (s *Storage) parsePairStorageCreateMultipart(opts []Pair) (pairStorageCreateMultipart, error) {
+	result := pairStorageCreateMultipart{
+		pairs: opts,
+	}
+
+	for _, v := range opts {
+		switch v.Key {
+		// Required pairs
+		// Optional pairs
+		case "content_type":
+			result.HasContentType = true
+			result.ContentType = v.Value.(string)
+		case pairServerSideDataEncryption:
+			result.HasServerSideDataEncryption = true
+			result.ServerSideDataEncryption = v.Value.(string)
+		case pairServerSideEncryption:
+			result.HasServerSideEncryption = true
+			result.ServerSideEncryption = v.Value.(string)
+		case pairServerSideEncryptionKeyID:
+			result.HasServerSideEncryptionKeyID = true
+			result.ServerSideEncryptionKeyID = v.Value.(string)
+		case pairStorageClass:
+			result.HasStorageClass = true
+			result.StorageClass = v.Value.(string)
+		// Generated pairs
+		default:
+
+			if s.pairPolicy.All || s.pairPolicy.CreateMultipart {
+				return pairStorageCreateMultipart{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -634,6 +727,8 @@ type pairStorageDelete struct {
 
 	// Required pairs
 	// Optional pairs
+	HasMultipartID bool
+	MultipartID    string
 	// Generated pairs
 }
 
@@ -647,11 +742,14 @@ func (s *Storage) parsePairStorageDelete(opts []Pair) (pairStorageDelete, error)
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case "multipart_id":
+			result.HasMultipartID = true
+			result.MultipartID = v.Value.(string)
 		// Generated pairs
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Delete {
-				return pairStorageDelete{}, services.NewPairUnsupportedError(v)
+				return pairStorageDelete{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -688,7 +786,39 @@ func (s *Storage) parsePairStorageList(opts []Pair) (pairStorageList, error) {
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.List {
-				return pairStorageList{}, services.NewPairUnsupportedError(v)
+				return pairStorageList{}, services.PairUnsupportedError{Pair: v}
+			}
+
+		}
+	}
+
+	return result, nil
+}
+
+// pairStorageListMultipart is the parsed struct
+type pairStorageListMultipart struct {
+	pairs []Pair
+
+	// Required pairs
+	// Optional pairs
+	// Generated pairs
+}
+
+// parsePairStorageListMultipart will parse Pair slice into *pairStorageListMultipart
+func (s *Storage) parsePairStorageListMultipart(opts []Pair) (pairStorageListMultipart, error) {
+	result := pairStorageListMultipart{
+		pairs: opts,
+	}
+
+	for _, v := range opts {
+		switch v.Key {
+		// Required pairs
+		// Optional pairs
+		// Generated pairs
+		default:
+
+			if s.pairPolicy.All || s.pairPolicy.ListMultipart {
+				return pairStorageListMultipart{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -720,7 +850,7 @@ func (s *Storage) parsePairStorageMetadata(opts []Pair) (pairStorageMetadata, er
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Metadata {
-				return pairStorageMetadata{}, services.NewPairUnsupportedError(v)
+				return pairStorageMetadata{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -767,7 +897,7 @@ func (s *Storage) parsePairStorageRead(opts []Pair) (pairStorageRead, error) {
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Read {
-				return pairStorageRead{}, services.NewPairUnsupportedError(v)
+				return pairStorageRead{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -782,6 +912,8 @@ type pairStorageStat struct {
 
 	// Required pairs
 	// Optional pairs
+	HasMultipartID bool
+	MultipartID    string
 	// Generated pairs
 }
 
@@ -795,11 +927,14 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case "multipart_id":
+			result.HasMultipartID = true
+			result.MultipartID = v.Value.(string)
 		// Generated pairs
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Stat {
-				return pairStorageStat{}, services.NewPairUnsupportedError(v)
+				return pairStorageStat{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -866,7 +1001,7 @@ func (s *Storage) parsePairStorageWrite(opts []Pair) (pairStorageWrite, error) {
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Write {
-				return pairStorageWrite{}, services.NewPairUnsupportedError(v)
+				return pairStorageWrite{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -908,7 +1043,44 @@ func (s *Storage) parsePairStorageWriteAppend(opts []Pair) (pairStorageWriteAppe
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.WriteAppend {
-				return pairStorageWriteAppend{}, services.NewPairUnsupportedError(v)
+				return pairStorageWriteAppend{}, services.PairUnsupportedError{Pair: v}
+			}
+
+		}
+	}
+
+	return result, nil
+}
+
+// pairStorageWriteMultipart is the parsed struct
+type pairStorageWriteMultipart struct {
+	pairs []Pair
+
+	// Required pairs
+	// Optional pairs
+	HasContentMd5 bool
+	ContentMd5    string
+	// Generated pairs
+}
+
+// parsePairStorageWriteMultipart will parse Pair slice into *pairStorageWriteMultipart
+func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteMultipart, error) {
+	result := pairStorageWriteMultipart{
+		pairs: opts,
+	}
+
+	for _, v := range opts {
+		switch v.Key {
+		// Required pairs
+		// Optional pairs
+		case "content_md5":
+			result.HasContentMd5 = true
+			result.ContentMd5 = v.Value.(string)
+		// Generated pairs
+		default:
+
+			if s.pairPolicy.All || s.pairPolicy.WriteMultipart {
+				return pairStorageWriteMultipart{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -940,6 +1112,31 @@ func (s *Storage) CommitAppendWithContext(ctx context.Context, o *Object, pairs 
 	}
 
 	return s.commitAppend(ctx, o, opt)
+}
+
+// CompleteMultipart will complete a multipart upload and construct an Object.
+//
+// This function will create a context by default.
+func (s *Storage) CompleteMultipart(o *Object, parts []*Part, pairs ...Pair) (err error) {
+	ctx := context.Background()
+	return s.CompleteMultipartWithContext(ctx, o, parts, pairs...)
+}
+
+// CompleteMultipartWithContext will complete a multipart upload and construct an Object.
+func (s *Storage) CompleteMultipartWithContext(ctx context.Context, o *Object, parts []*Part, pairs ...Pair) (err error) {
+	pairs = append(pairs, s.defaultPairs.CompleteMultipart...)
+	var opt pairStorageCompleteMultipart
+
+	defer func() {
+		err = s.formatError("complete_multipart", err)
+	}()
+
+	opt, err = s.parsePairStorageCompleteMultipart(pairs)
+	if err != nil {
+		return
+	}
+
+	return s.completeMultipart(ctx, o, parts, opt)
 }
 
 // Create will create a new object without any api call.
@@ -978,6 +1175,31 @@ func (s *Storage) CreateAppendWithContext(ctx context.Context, path string, pair
 	}
 
 	return s.createAppend(ctx, path, opt)
+}
+
+// CreateMultipart will create a new multipart.
+//
+// This function will create a context by default.
+func (s *Storage) CreateMultipart(path string, pairs ...Pair) (o *Object, err error) {
+	ctx := context.Background()
+	return s.CreateMultipartWithContext(ctx, path, pairs...)
+}
+
+// CreateMultipartWithContext will create a new multipart.
+func (s *Storage) CreateMultipartWithContext(ctx context.Context, path string, pairs ...Pair) (o *Object, err error) {
+	pairs = append(pairs, s.defaultPairs.CreateMultipart...)
+	var opt pairStorageCreateMultipart
+
+	defer func() {
+		err = s.formatError("create_multipart", err, path)
+	}()
+
+	opt, err = s.parsePairStorageCreateMultipart(pairs)
+	if err != nil {
+		return
+	}
+
+	return s.createMultipart(ctx, path, opt)
 }
 
 // Delete will delete an Object from service.
@@ -1028,6 +1250,31 @@ func (s *Storage) ListWithContext(ctx context.Context, path string, pairs ...Pai
 	}
 
 	return s.list(ctx, path, opt)
+}
+
+// ListMultipart will list parts belong to this multipart.
+//
+// This function will create a context by default.
+func (s *Storage) ListMultipart(o *Object, pairs ...Pair) (pi *PartIterator, err error) {
+	ctx := context.Background()
+	return s.ListMultipartWithContext(ctx, o, pairs...)
+}
+
+// ListMultipartWithContext will list parts belong to this multipart.
+func (s *Storage) ListMultipartWithContext(ctx context.Context, o *Object, pairs ...Pair) (pi *PartIterator, err error) {
+	pairs = append(pairs, s.defaultPairs.ListMultipart...)
+	var opt pairStorageListMultipart
+
+	defer func() {
+		err = s.formatError("list_multipart", err)
+	}()
+
+	opt, err = s.parsePairStorageListMultipart(pairs)
+	if err != nil {
+		return
+	}
+
+	return s.listMultipart(ctx, o, opt)
 }
 
 // Metadata will return current storager metadata.
@@ -1153,4 +1400,34 @@ func (s *Storage) WriteAppendWithContext(ctx context.Context, o *Object, r io.Re
 	}
 
 	return s.writeAppend(ctx, o, r, size, opt)
+}
+
+// WriteMultipart will write content to a multipart.
+//
+// This function will create a context by default.
+func (s *Storage) WriteMultipart(o *Object, r io.Reader, size int64, index int, pairs ...Pair) (n int64, err error) {
+	ctx := context.Background()
+	return s.WriteMultipartWithContext(ctx, o, r, size, index, pairs...)
+}
+
+// WriteMultipartWithContext will write content to a multipart.
+func (s *Storage) WriteMultipartWithContext(ctx context.Context, o *Object, r io.Reader, size int64, index int, pairs ...Pair) (n int64, err error) {
+	pairs = append(pairs, s.defaultPairs.WriteMultipart...)
+	var opt pairStorageWriteMultipart
+
+	defer func() {
+		err = s.formatError("write_multipart", err)
+	}()
+
+	opt, err = s.parsePairStorageWriteMultipart(pairs)
+	if err != nil {
+		return
+	}
+
+	return s.writeMultipart(ctx, o, r, size, index, opt)
+}
+
+func init() {
+	services.RegisterServicer(Type, NewServicer)
+	services.RegisterStorager(Type, NewStorager)
 }

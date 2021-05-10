@@ -7,11 +7,17 @@ required = ["credential"]
 optional = ["default_service_pairs", "endpoint", "http_client_options"]
 
 [namespace.storage]
-implement = ["appender"]
+implement = ["appender", "multiparter"]
 
 [namespace.storage.new]
 required = ["name"]
 optional = ["default_storage_pairs", "pair_policy", "work_dir"]
+
+[namespace.storage.op.delete]
+optional = ["multipart_id"]
+
+[namespace.storage.op.stat]
+optional = ["multipart_id"]
 
 [namespace.storage.op.list]
 optional = ["list_mode"]
@@ -27,6 +33,12 @@ optional = ["content_type", "server_side_encryption", "server_side_encryption_ke
 
 [namespace.storage.op.write_append]
 optional = ["content_md5", "io_callback"]
+
+[namespace.storage.op.create_multipart]
+optional = ["content_type", "server_side_encryption", "server_side_encryption_key_id", "server_side_data_encryption", "storage_class"]
+
+[namespace.storage.op.write_multipart]
+optional = ["content_md5"]
 
 [pairs.default_service_pairs]
 type = "DefaultServicePairs"

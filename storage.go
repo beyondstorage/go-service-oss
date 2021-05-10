@@ -11,10 +11,40 @@ import (
 
 	"github.com/aos-dev/go-storage/v3/pkg/headers"
 	"github.com/aos-dev/go-storage/v3/pkg/iowrap"
+	"github.com/aos-dev/go-storage/v3/services"
 	. "github.com/aos-dev/go-storage/v3/types"
 )
 
 func (s *Storage) commitAppend(ctx context.Context, o *Object, opt pairStorageCommitAppend) (err error) {
+	return
+}
+
+func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt pairStorageCompleteMultipart) (err error) {
+	if o.Mode&ModePart == 0 {
+		return services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
+	}
+
+	imur := oss.InitiateMultipartUploadResult{
+		Bucket:   s.bucket.BucketName,
+		Key:      o.ID,
+		UploadID: o.MustGetMultipartID(),
+	}
+
+	var uploadParts []oss.UploadPart
+	for _, v := range parts {
+		uploadParts = append(uploadParts, oss.UploadPart{
+			PartNumber: v.Index,
+			ETag:       v.ETag,
+		})
+	}
+
+	_, err = s.bucket.CompleteMultipartUpload(imur, uploadParts)
+	if err != nil {
+		return
+	}
+
+	o.Mode &= ^ModePart
+	o.Mode |= ModeRead
 	return
 }
 
@@ -60,8 +90,59 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 	return o, nil
 }
 
+func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
+	rp := s.getAbsPath(path)
+
+	options := make([]oss.Option, 0)
+	if opt.HasContentType {
+		options = append(options, oss.ContentType(opt.ContentType))
+	}
+	if opt.HasStorageClass {
+		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
+	}
+	if opt.HasServerSideEncryption {
+		options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
+	}
+	if opt.HasServerSideDataEncryption {
+		options = append(options, oss.ServerSideDataEncryption(opt.ServerSideDataEncryption))
+	}
+	if opt.HasServerSideEncryptionKeyID {
+		options = append(options, oss.ServerSideEncryptionKeyID(opt.ServerSideEncryptionKeyID))
+	}
+
+	output, err := s.bucket.InitiateMultipartUpload(rp, options...)
+	if err != nil {
+		return
+	}
+
+	o = s.newObject(true)
+	o.ID = rp
+	o.Path = path
+	o.Mode |= ModePart
+	o.SetMultipartID(output.UploadID)
+
+	return o, nil
+}
+
 func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete) (err error) {
 	rp := s.getAbsPath(path)
+
+	if opt.HasMultipartID {
+		err = s.bucket.AbortMultipartUpload(oss.InitiateMultipartUploadResult{
+			Bucket:   s.bucket.BucketName,
+			Key:      rp,
+			UploadID: opt.MultipartID,
+		})
+		if err != nil && checkError(err, responseCodeNoSuchUpload) {
+			// Omit `NoSuchUpdate` error here
+			// ref: [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
+			err = nil
+		}
+		if err != nil {
+			return
+		}
+		return
+	}
 
 	// OSS DeleteObject is idempotent, so we don't need to check NoSuchKey error.
 	//
@@ -84,6 +165,8 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 	var nextFn NextObjectFunc
 
 	switch {
+	case opt.ListMode.IsPart():
+		nextFn = s.nextPartObjectPageByPrefix
 	case opt.ListMode.IsDir():
 		input.delimiter = "/"
 		nextFn = s.nextObjectPageByDir
@@ -94,6 +177,20 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 	}
 
 	return NewObjectIterator(ctx, nextFn, input), nil
+}
+
+func (s *Storage) listMultipart(ctx context.Context, o *Object, opt pairStorageListMultipart) (pi *PartIterator, err error) {
+	if o.Mode&ModePart == 0 {
+		return nil, services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
+	}
+
+	input := &partPageStatus{
+		maxParts: 200,
+		key:      o.ID,
+		uploadId: o.MustGetMultipartID(),
+	}
+
+	return NewPartIterator(ctx, s.nextPartPage, input), nil
 }
 
 func (s *Storage) metadata(ctx context.Context, opt pairStorageMetadata) (meta *StorageMeta, err error) {
@@ -171,6 +268,78 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 	return nil
 }
 
+func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
+	input := page.Status.(*objectPageStatus)
+
+	options := make([]oss.Option, 0)
+	options = append(options, oss.Delimiter(input.delimiter))
+	options = append(options, oss.MaxKeys(input.maxKeys))
+	options = append(options, oss.Prefix(input.prefix))
+	options = append(options, oss.KeyMarker(input.marker))
+	options = append(options, oss.UploadIDMarker(input.partIdMarker))
+
+	output, err := s.bucket.ListMultipartUploads(options...)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.Uploads {
+		o := s.newObject(true)
+		o.ID = v.Key
+		o.Path = s.getRelPath(v.Key)
+		o.Mode |= ModePart
+		o.SetMultipartID(v.UploadID)
+
+		page.Data = append(page.Data, o)
+	}
+
+	if output.NextKeyMarker == "" && output.NextUploadIDMarker == "" {
+		return IterateDone
+	}
+	if !output.IsTruncated {
+		return IterateDone
+	}
+
+	input.marker = output.NextKeyMarker
+	input.partIdMarker = output.NextUploadIDMarker
+	return nil
+}
+
+func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
+	input := page.Status.(*partPageStatus)
+
+	output, err := s.bucket.ListUploadedParts(oss.InitiateMultipartUploadResult{
+		Bucket:   s.bucket.BucketName,
+		Key:      input.key,
+		UploadID: input.uploadId,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.UploadedParts {
+		p := &Part{
+			Index: v.PartNumber,
+			ETag:  v.ETag,
+			Size:  int64(v.Size),
+		}
+
+		page.Data = append(page.Data, p)
+	}
+
+	if !output.IsTruncated {
+		return IterateDone
+	}
+
+	partNumberMarker, err := strconv.ParseInt(output.NextPartNumberMarker, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	input.partNumberMarker = partNumberMarker
+	return nil
+}
+
 func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairStorageRead) (n int64, err error) {
 	rp := s.getAbsPath(path)
 
@@ -190,6 +359,24 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 
 func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o *Object, err error) {
 	rp := s.getAbsPath(path)
+
+	if opt.HasMultipartID {
+		_, err = s.bucket.ListUploadedParts(oss.InitiateMultipartUploadResult{
+			Bucket:   s.bucket.BucketName,
+			Key:      rp,
+			UploadID: opt.MultipartID,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		o = s.newObject(true)
+		o.ID = rp
+		o.Path = path
+		o.Mode |= ModePart
+		o.SetMultipartID(opt.MultipartID)
+		return o, nil
+	}
 
 	output, err := s.bucket.GetObjectMeta(rp)
 	if err != nil {
@@ -307,4 +494,28 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 	o.SetAppendOffset(offset)
 
 	return size, err
+}
+
+func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, err error) {
+	if o.Mode&ModePart == 0 {
+		return 0, services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
+	}
+
+	imur := oss.InitiateMultipartUploadResult{
+		Bucket:   s.bucket.BucketName,
+		Key:      o.ID,
+		UploadID: o.MustGetMultipartID(),
+	}
+
+	options := make([]oss.Option, 0)
+	options = append(options, oss.ContentLength(size))
+	if opt.HasContentMd5 {
+		options = append(options, oss.ContentMD5(opt.ContentMd5))
+	}
+
+	_, err = s.bucket.UploadPart(imur, r, size, index, options...)
+	if err != nil {
+		return
+	}
+	return size, nil
 }
