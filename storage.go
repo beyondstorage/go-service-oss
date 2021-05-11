@@ -2,7 +2,6 @@ package oss
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strconv"
 	"time"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/aos-dev/go-storage/v3/pkg/headers"
 	"github.com/aos-dev/go-storage/v3/pkg/iowrap"
+	"github.com/aos-dev/go-storage/v3/services"
 	. "github.com/aos-dev/go-storage/v3/types"
 )
 
@@ -90,7 +90,7 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 	case opt.ListMode.IsPrefix():
 		nextFn = s.nextObjectPageByPrefix
 	default:
-		return nil, fmt.Errorf("invalid list mode")
+		return nil, services.ListModeInvalidError{Actual: opt.ListMode}
 	}
 
 	return NewObjectIterator(ctx, nextFn, input), nil
@@ -277,7 +277,7 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 
 func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size int64, opt pairStorageWriteAppend) (n int64, err error) {
 	if !o.Mode.IsAppend() {
-		err = fmt.Errorf("object not appendable")
+		err = services.ObjectModeInvalidError{Expected: ModeAppend, Actual: o.Mode}
 		return
 	}
 
@@ -287,11 +287,7 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
 
-	offset, ok := o.GetAppendOffset()
-	if !ok {
-		err = fmt.Errorf("append offset is not set")
-		return
-	}
+	offset, _ := o.GetAppendOffset()
 
 	options := make([]oss.Option, 0)
 	options = append(options, oss.ContentLength(size))

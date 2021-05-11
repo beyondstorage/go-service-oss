@@ -69,7 +69,7 @@ func NewStorager(pairs ...typ.Pair) (typ.Storager, error) {
 func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	defer func() {
 		if err != nil {
-			err = &services.InitError{Op: "new_servicer", Type: Type, Err: err, Pairs: pairs}
+			err = services.InitError{Op: "new_servicer", Type: Type, Err: formatError(err), Pairs: pairs}
 		}
 	}()
 
@@ -85,7 +85,7 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, err
 	}
 	if cp.Protocol() != credential.ProtocolHmac {
-		return nil, services.NewPairUnsupportedError(ps.WithCredential(opt.Credential))
+		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}
 	ak, sk := cp.Hmac()
 
@@ -110,12 +110,6 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	return
 }
 func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, err error) {
-	defer func() {
-		if err != nil {
-			err = &services.InitError{Op: "new_storager", Type: Type, Err: err, Pairs: pairs}
-		}
-	}()
-
 	srv, err = newServicer(pairs...)
 	if err != nil {
 		return
@@ -123,6 +117,7 @@ func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, er
 
 	store, err = srv.newStorage(pairs...)
 	if err != nil {
+		err = services.InitError{Op: "new_storager", Type: Type, Err: formatError(err), Pairs: pairs}
 		return nil, nil, err
 	}
 	return srv, store, nil
@@ -140,6 +135,10 @@ const (
 )
 
 func formatError(err error) error {
+	if _, ok := err.(services.AosError); ok {
+		return err
+	}
+
 	switch e := err.(type) {
 	case oss.ServiceError:
 		switch e.Code {
@@ -148,7 +147,7 @@ func formatError(err error) error {
 			case 404:
 				return fmt.Errorf("%w: %v", services.ErrObjectNotExist, err)
 			default:
-				return err
+				return fmt.Errorf("%w, %v", services.ErrUnexpected, err)
 			}
 		case "NoSuchKey":
 			return fmt.Errorf("%w: %v", services.ErrObjectNotExist, err)
@@ -164,7 +163,7 @@ func formatError(err error) error {
 		}
 	}
 
-	return err
+	return fmt.Errorf("%w, %v", services.ErrUnexpected, err)
 }
 
 // newStorage will create a new client.
@@ -202,7 +201,7 @@ func (s *Service) formatError(op string, err error, name string) error {
 		return nil
 	}
 
-	return &services.ServiceError{
+	return services.ServiceError{
 		Op:       op,
 		Err:      formatError(err),
 		Servicer: s,
@@ -227,7 +226,7 @@ func (s *Storage) formatError(op string, err error, path ...string) error {
 		return nil
 	}
 
-	return &services.StorageError{
+	return services.StorageError{
 		Op:       op,
 		Err:      formatError(err),
 		Storager: s,
