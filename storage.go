@@ -33,7 +33,9 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 	var uploadParts []oss.UploadPart
 	for _, v := range parts {
 		uploadParts = append(uploadParts, oss.UploadPart{
-			PartNumber: v.Index,
+			// For user the `PartNumber` is zero-based. But for OSS, the effective `PartNumber` is [1, 10000].
+			// Set PartNumber=v.Index+1 here to ensure pass in the effective `PartNumber` for `UploadPart`.
+			PartNumber: v.Index + 1,
 			ETag:       v.ETag,
 		})
 	}
@@ -330,7 +332,9 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 
 	for _, v := range output.UploadedParts {
 		p := &Part{
-			Index: v.PartNumber,
+			// The returned `PartNumber` is [1, 10000].
+			// Set Index=v.PartNumber-1 here to make the `PartNumber` zero-based for user.
+			Index: v.PartNumber - 1,
 			ETag:  v.ETag,
 			Size:  int64(v.Size),
 		}
@@ -524,7 +528,8 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		options = append(options, oss.ContentMD5(opt.ContentMd5))
 	}
 
-	// For OSS, the `partNumber` is not zero-based, the effective `partNumber` ranges from 1 to 10,000.
+	// For OSS, the `partNumber` is [1, 10000]. But for user, the `partNumber` is zero-based.
+	// Set partNumber=index+1 here to ensure pass in the effective `partNumber` for `UpdatePart`.
 	// ref: https://help.aliyun.com/document_detail/31993.html
 	output, err := s.bucket.UploadPart(imur, r, size, index+1, options...)
 	if err != nil {
@@ -532,7 +537,8 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 	}
 
 	part = &Part{
-		Index: output.PartNumber,
+		// Set part.Index=index instead of part.Index=output.PartNumber to maintain `partNumber` consistency for user.
+		Index: index,
 		Size:  size,
 		ETag:  output.ETag,
 	}
