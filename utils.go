@@ -40,6 +40,7 @@ type Storage struct {
 
 	typ.UnimplementedStorager
 	typ.UnimplementedAppender
+	typ.UnimplementedMultiparter
 }
 
 // String implements Storager.String
@@ -277,4 +278,32 @@ const (
 	ServerSideEncryptionSM4    = "SM4"
 
 	ServerSideDataEncryptionSM4 = "SM4"
+)
+
+// OSS response error code.
+//
+// ref: https://error-center.alibabacloud.com/status/product/Oss
+const (
+	// responseCodeNoSuchUpload will be returned while the specified upload does not exist.
+	responseCodeNoSuchUpload = "NoSuchUpload"
+)
+
+func checkError(err error, code string) bool {
+	e, ok := err.(oss.ServiceError)
+	if !ok {
+		return false
+	}
+
+	return e.Code == code
+}
+
+// multipartXXX are multipart upload restriction in OSS, see more details at:
+// https://help.aliyun.com/document_detail/31993.html
+const (
+	// multipartNumberMaximum is the max part count supported.
+	multipartNumberMaximum = 10000
+	// multipartSizeMaximum is the maximum size for each part, 5GB.
+	multipartSizeMaximum = 5 * 1024 * 1024 * 1024
+	// multipartSizeMinimum is the minimum size for each part, 100KB.
+	multipartSizeMinimum = 100 * 1024
 )
