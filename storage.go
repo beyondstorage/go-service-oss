@@ -49,8 +49,15 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 }
 
 func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
-	o = s.newObject(false)
-	o.Mode = ModeRead
+	// Handle create multipart object separately.
+	if opt.HasMultipartID {
+		o = s.newObject(true)
+		o.Mode = ModePart
+		o.SetMultipartID(opt.MultipartID)
+	} else {
+		o = s.newObject(false)
+		o.Mode = ModeRead
+	}
 	o.ID = s.getAbsPath(path)
 	o.Path = path
 	return o
@@ -120,6 +127,10 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Path = path
 	o.Mode |= ModePart
 	o.SetMultipartID(output.UploadID)
+	// set multipart restriction
+	o.SetMultipartNumberMaximum(multipartNumberMaximum)
+	o.SetMultipartNumberMaximum(multipartSizeMaximum)
+	o.SetMultipartSizeMinimum(multipartSizeMinimum)
 
 	return o, nil
 }
@@ -496,9 +507,9 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 	return size, err
 }
 
-func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, err error) {
+func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, part *Part, err error) {
 	if o.Mode&ModePart == 0 {
-		return 0, services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
+		return 0, nil, services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
 	}
 
 	imur := oss.InitiateMultipartUploadResult{
@@ -513,9 +524,17 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		options = append(options, oss.ContentMD5(opt.ContentMd5))
 	}
 
-	_, err = s.bucket.UploadPart(imur, r, size, index, options...)
+	// For OSS, the `partNumber` is not zero-based, the effective `partNumber` ranges from 1 to 10,000.
+	// ref: https://help.aliyun.com/document_detail/31993.html
+	output, err := s.bucket.UploadPart(imur, r, size, index+1, options...)
 	if err != nil {
 		return
 	}
-	return size, nil
+
+	part = &Part{
+		Index: output.PartNumber,
+		Size:  size,
+		ETag:  output.ETag,
+	}
+	return size, part, nil
 }

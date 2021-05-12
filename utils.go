@@ -297,3 +297,14 @@ func checkError(err error, code string) bool {
 
 	return e.Code == code
 }
+
+// multipartXXX are multipart upload restriction in OSS, see more details at:
+// https://help.aliyun.com/document_detail/31993.html
+const (
+	// multipartNumberMaximum is the max part count supported.
+	multipartNumberMaximum = 10000
+	// multipartSizeMaximum is the maximum size for each part, 5GB.
+	multipartSizeMaximum = 5 * 1024 * 1024 * 1024
+	// multipartSizeMinimum is the minimum size for each part, 100KB.
+	multipartSizeMinimum = 100 * 1024
+)
