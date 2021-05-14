@@ -19,10 +19,6 @@ func (s *Storage) commitAppend(ctx context.Context, o *Object, opt pairStorageCo
 }
 
 func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt pairStorageCompleteMultipart) (err error) {
-	if o.Mode&ModePart == 0 {
-		return services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
-	}
-
 	imur := oss.InitiateMultipartUploadResult{
 		Bucket:   s.bucket.BucketName,
 		Key:      o.ID,
@@ -192,10 +188,6 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 }
 
 func (s *Storage) listMultipart(ctx context.Context, o *Object, opt pairStorageListMultipart) (pi *PartIterator, err error) {
-	if o.Mode&ModePart == 0 {
-		return nil, services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
-	}
-
 	input := &partPageStatus{
 		maxParts: 200,
 		key:      o.ID,
@@ -477,11 +469,6 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 }
 
 func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size int64, opt pairStorageWriteAppend) (n int64, err error) {
-	if !o.Mode.IsAppend() {
-		err = services.ObjectModeInvalidError{Expected: ModeAppend, Actual: o.Mode}
-		return
-	}
-
 	rp := o.GetID()
 
 	if opt.HasIoCallback {
@@ -507,10 +494,6 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 }
 
 func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, part *Part, err error) {
-	if o.Mode&ModePart == 0 {
-		return 0, nil, services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
-	}
-
 	imur := oss.InitiateMultipartUploadResult{
 		Bucket:   s.bucket.BucketName,
 		Key:      o.ID,
