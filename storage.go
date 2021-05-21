@@ -8,10 +8,10 @@ import (
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 
-	"github.com/aos-dev/go-storage/v3/pkg/headers"
-	"github.com/aos-dev/go-storage/v3/pkg/iowrap"
-	"github.com/aos-dev/go-storage/v3/services"
-	. "github.com/aos-dev/go-storage/v3/types"
+	"github.com/beyondstorage/go-storage/v4/pkg/headers"
+	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
+	"github.com/beyondstorage/go-storage/v4/services"
+	. "github.com/beyondstorage/go-storage/v4/types"
 )
 
 func (s *Storage) commitAppend(ctx context.Context, o *Object, opt pairStorageCommitAppend) (err error) {
@@ -143,7 +143,7 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		})
 		if err != nil && checkError(err, responseCodeNoSuchUpload) {
 			// Omit `NoSuchUpdate` error here
-			// ref: [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
+			// ref: [GSP-46](https://github.com/beyondstorage/specs/blob/master/rfcs/46-idempotent-delete.md)
 			err = nil
 		}
 		if err != nil {
@@ -155,7 +155,7 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 	// OSS DeleteObject is idempotent, so we don't need to check NoSuchKey error.
 	//
 	// References
-	// - [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
+	// - [GSP-46](https://github.com/beyondstorage/specs/blob/master/rfcs/46-idempotent-delete.md)
 	// - https://help.aliyun.com/document_detail/31982.html
 	err = s.bucket.DeleteObject(rp)
 	if err != nil {
@@ -197,7 +197,7 @@ func (s *Storage) listMultipart(ctx context.Context, o *Object, opt pairStorageL
 	return NewPartIterator(ctx, s.nextPartPage, input), nil
 }
 
-func (s *Storage) metadata(ctx context.Context, opt pairStorageMetadata) (meta *StorageMeta, err error) {
+func (s *Storage) metadata(opt pairStorageMetadata) (meta *StorageMeta) {
 	meta = NewStorageMeta()
 	meta.Name = s.bucket.BucketName
 	meta.WorkDir = s.workDir

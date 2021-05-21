@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - *: Add UnimplementedStub (#12)
 - tests: Introduce STORAGE_OSS_INTEGRATION_TEST (#13)
 - storage: Implement SSE support (#14)
-- storage: Implement AOS-40 (#16)
+- storage: Implement GSP-40 (#16)
 
 ### Changed
 
@@ -30,4 +30,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement oss services.
 
-[v1.1.0]: https://github.com/aos-dev/go-service-oss/compare/v1.0.0...v1.1.0
+[v1.1.0]: https://github.com/beyondstorage/go-service-oss/compare/v1.0.0...v1.1.0
