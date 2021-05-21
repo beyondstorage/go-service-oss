@@ -31,5 +31,5 @@ type partPageStatus struct {
 }
 
 func (i *partPageStatus) ContinuationToken() string {
-	return strconv.FormatInt(int64(i.partNumberMarker), 10)
+	return strconv.FormatInt(i.partNumberMarker, 10)
 }

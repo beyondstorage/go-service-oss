@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	oss "github.com/aos-dev/go-service-oss"
-	ps "github.com/aos-dev/go-storage/v3/pairs"
-	"github.com/aos-dev/go-storage/v3/types"
+	oss "github.com/beyondstorage/go-service-oss/v2"
+	ps "github.com/beyondstorage/go-storage/v4/pairs"
+	"github.com/beyondstorage/go-storage/v4/types"
 	"github.com/google/uuid"
 )
 
