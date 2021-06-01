@@ -25,11 +25,11 @@ func (i *storagePageStatus) ContinuationToken() string {
 
 type partPageStatus struct {
 	key              string
-	maxParts         int64
-	partNumberMarker int64
+	maxParts         int
+	partNumberMarker int
 	uploadId         string
 }
 
 func (i *partPageStatus) ContinuationToken() string {
-	return strconv.FormatInt(i.partNumberMarker, 10)
+	return strconv.Itoa(i.partNumberMarker)
 }

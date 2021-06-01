@@ -312,11 +312,17 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	input := page.Status.(*partPageStatus)
 
-	output, err := s.bucket.ListUploadedParts(oss.InitiateMultipartUploadResult{
+	imur := oss.InitiateMultipartUploadResult{
 		Bucket:   s.bucket.BucketName,
 		Key:      input.key,
 		UploadID: input.uploadId,
-	})
+	}
+
+	options := make([]oss.Option, 0)
+	options = append(options, oss.MaxParts(input.maxParts))
+	options = append(options, oss.PartNumberMarker(input.partNumberMarker))
+
+	output, err := s.bucket.ListUploadedParts(imur, options...)
 	if err != nil {
 		return err
 	}
@@ -337,7 +343,7 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 		return IterateDone
 	}
 
-	partNumberMarker, err := strconv.ParseInt(output.NextPartNumberMarker, 10, 64)
+	partNumberMarker, err := strconv.Atoi(output.NextPartNumberMarker)
 	if err != nil {
 		return err
 	}
