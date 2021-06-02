@@ -63,7 +63,7 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorageCreateAppend) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
-	options := make([]oss.Option, 0)
+	options := make([]oss.Option, 0, 3)
 	options = append(options, oss.ContentLength(0))
 	if opt.HasContentType {
 		options = append(options, oss.ContentType(opt.ContentType))
@@ -97,7 +97,7 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
-	options := make([]oss.Option, 0)
+	options := make([]oss.Option, 0, 3)
 	if opt.HasContentType {
 		options = append(options, oss.ContentType(opt.ContentType))
 	}
@@ -275,7 +275,7 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
 	input := page.Status.(*objectPageStatus)
 
-	options := make([]oss.Option, 0)
+	options := make([]oss.Option, 0, 5)
 	options = append(options, oss.Delimiter(input.delimiter))
 	options = append(options, oss.MaxKeys(input.maxKeys))
 	options = append(options, oss.Prefix(input.prefix))
@@ -318,7 +318,7 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 		UploadID: input.uploadId,
 	}
 
-	options := make([]oss.Option, 0)
+	options := make([]oss.Option, 0, 2)
 	options = append(options, oss.MaxParts(input.maxParts))
 	options = append(options, oss.PartNumberMarker(input.partNumberMarker))
 
@@ -449,7 +449,7 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 
 	rp := s.getAbsPath(path)
 
-	options := make([]oss.Option, 0)
+	options := make([]oss.Option, 0, 3)
 	options = append(options, oss.ContentLength(size))
 	if opt.HasContentMd5 {
 		options = append(options, oss.ContentMD5(opt.ContentMd5))
@@ -483,7 +483,7 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 
 	offset, _ := o.GetAppendOffset()
 
-	options := make([]oss.Option, 0)
+	options := make([]oss.Option, 0, 1)
 	options = append(options, oss.ContentLength(size))
 	if opt.HasContentMd5 {
 		options = append(options, oss.ContentMD5(opt.ContentMd5))
@@ -506,7 +506,7 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		UploadID: o.MustGetMultipartID(),
 	}
 
-	options := make([]oss.Option, 0)
+	options := make([]oss.Option, 0, 1)
 	options = append(options, oss.ContentLength(size))
 	if opt.HasContentMd5 {
 		options = append(options, oss.ContentMD5(opt.ContentMd5))
