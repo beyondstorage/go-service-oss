@@ -490,7 +490,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		o.SetContentType(v)
 	}
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if v := output.Get(storageClassHeader); v != "" {
 		sm.StorageClass = v
 	}
@@ -500,7 +500,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if v := output.Get(serverSideEncryptionKeyIdHeader); v != "" {
 		sm.ServerSideEncryptionKeyID = v
 	}
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return o, nil
 }

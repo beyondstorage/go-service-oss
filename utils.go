@@ -260,11 +260,11 @@ func (s *Storage) formatFileObject(v oss.ObjectProperties) (o *typ.Object, err e
 		o.SetEtag(v.ETag)
 	}
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if value := v.Type; value != "" {
 		sm.StorageClass = value
 	}
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return
 }
