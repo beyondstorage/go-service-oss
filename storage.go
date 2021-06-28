@@ -8,6 +8,7 @@ import (
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 
+	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/headers"
 	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
 	"github.com/beyondstorage/go-storage/v4/services"
@@ -46,16 +47,27 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 }
 
 func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
+	rp := s.getAbsPath(path)
+
 	// Handle create multipart object separately.
 	if opt.HasMultipartID {
 		o = s.newObject(true)
 		o.Mode = ModePart
 		o.SetMultipartID(opt.MultipartID)
 	} else {
-		o = s.newObject(false)
-		o.Mode = ModeRead
+		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+			if !s.features.VirtualDir {
+				return
+			}
+			rp += "/"
+			o = s.newObject(true)
+			o.Mode = ModeDir
+		} else {
+			o = s.newObject(false)
+			o.Mode = ModeRead
+		}
 	}
-	o.ID = s.getAbsPath(path)
+	o.ID = rp
 	o.Path = path
 	return o
 }
@@ -92,6 +104,35 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 	o.Path = path
 	o.SetAppendOffset(offset)
 	return o, nil
+}
+
+func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCreateDir) (o *Object, err error) {
+	if !s.features.VirtualDir {
+		err = NewOperationNotImplementedError("create_dir")
+		return
+	}
+	rp := s.getAbsPath(path)
+
+	// Add `/` at the end of path to simulate directory.
+	// ref: https://help.aliyun.com/document_detail/31978.html#title-gkg-amg-aes
+	rp += "/"
+
+	options := make([]oss.Option, 0)
+	options = append(options, oss.ContentLength(0))
+	if opt.HasStorageClass {
+		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
+	}
+
+	err = s.bucket.PutObject(rp, nil, options...)
+	if err != nil {
+		return
+	}
+
+	o = s.newObject(true)
+	o.Path = path
+	o.ID = rp
+	o.Mode |= ModeDir
+	return
 }
 
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
@@ -150,6 +191,15 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 			return
 		}
 		return
+	}
+
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return
+		}
+
+		rp += "/"
 	}
 
 	// OSS DeleteObject is idempotent, so we don't need to check NoSuchKey error.
@@ -390,6 +440,15 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		return o, nil
 	}
 
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return
+		}
+
+		rp += "/"
+	}
+
 	output, err := s.bucket.GetObjectMeta(rp)
 	if err != nil {
 		return nil, err
@@ -398,7 +457,11 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	o = s.newObject(true)
 	o.ID = rp
 	o.Path = path
-	o.Mode |= ModeRead
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		o.Mode |= ModeDir
+	} else {
+		o.Mode |= ModeRead
+	}
 
 	if v := output.Get(headers.ContentLength); v != "" {
 		size, err := strconv.ParseInt(v, 10, 64)
