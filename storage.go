@@ -2,6 +2,7 @@ package oss
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strconv"
 	"time"
@@ -165,10 +166,6 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Path = path
 	o.Mode |= ModePart
 	o.SetMultipartID(output.UploadID)
-	// set multipart restriction
-	o.SetMultipartNumberMaximum(multipartNumberMaximum)
-	o.SetMultipartNumberMaximum(multipartSizeMaximum)
-	o.SetMultipartSizeMinimum(multipartSizeMinimum)
 
 	return o, nil
 }
@@ -251,6 +248,14 @@ func (s *Storage) metadata(opt pairStorageMetadata) (meta *StorageMeta) {
 	meta = NewStorageMeta()
 	meta.Name = s.bucket.BucketName
 	meta.WorkDir = s.workDir
+	// set write restriction
+	meta.SetWriteSizeMaximum(writeSizeMaximum)
+	// set append restriction
+	meta.SetAppendTotalSizeMaximum(appendTotalSizeMaximum)
+	// set multipart restrictions
+	meta.SetMultipartNumberMaximum(multipartNumberMaximum)
+	meta.SetMultipartNumberMaximum(multipartSizeMaximum)
+	meta.SetMultipartSizeMinimum(multipartSizeMinimum)
 	return
 }
 
@@ -506,6 +511,11 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 }
 
 func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int64, opt pairStorageWrite) (n int64, err error) {
+	if size > writeSizeMaximum {
+		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+
 	if opt.HasIoCallback {
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
@@ -563,6 +573,15 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 }
 
 func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, part *Part, err error) {
+	if index < 0 || index >= multipartNumberMaximum {
+		err = fmt.Errorf("multipart number limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+	if size > multipartSizeMaximum {
+		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+
 	imur := oss.InitiateMultipartUploadResult{
 		Bucket:   s.bucket.BucketName,
 		Key:      o.ID,

@@ -322,3 +322,12 @@ const (
 	// multipartSizeMinimum is the minimum size for each part, 100KB.
 	multipartSizeMinimum = 100 * 1024
 )
+
+const (
+	// writeSizeMaximum is the maximum size for each object with a single PUT operation, 5GB.
+	// ref: https://help.aliyun.com/document_detail/31978.html#title-gkg-amg-aes
+	writeSizeMaximum = 5 * 1024 * 1024 * 1024
+	// appendSizeMaximum is the total maximum size for an append object, 5GB.
+	// ref: https://help.aliyun.com/document_detail/31981.html?spm=a2c4g.11186623.6.1684.479a3ea7S8dRgB#title-22f-5c3-0sv
+	appendTotalSizeMaximum = 5 * 1024 * 1024 * 1024
+)
