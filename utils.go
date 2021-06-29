@@ -6,9 +6,9 @@ import (
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 
+	"github.com/beyondstorage/go-endpoint"
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/credential"
-	"github.com/beyondstorage/go-storage/v4/pkg/endpoint"
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
 	"github.com/beyondstorage/go-storage/v4/services"
 	typ "github.com/beyondstorage/go-storage/v4/types"
@@ -42,6 +42,7 @@ type Storage struct {
 	typ.UnimplementedStorager
 	typ.UnimplementedAppender
 	typ.UnimplementedMultiparter
+	typ.UnimplementedDirer
 }
 
 // String implements Storager.String
@@ -96,12 +97,22 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, err
 	}
 
+	var url string
+	switch ep.Protocol() {
+	case endpoint.ProtocolHTTP:
+		url, _, _ = ep.HTTP()
+	case endpoint.ProtocolHTTPS:
+		url, _, _ = ep.HTTPS()
+	default:
+		return nil, services.PairUnsupportedError{Pair: ps.WithEndpoint(opt.Endpoint)}
+	}
+
 	var copts []oss.ClientOption
 	if opt.HasHTTPClientOptions {
 		copts = append(copts, oss.HTTPClient(httpclient.New(opt.HTTPClientOptions)))
 	}
 
-	srv.service, err = oss.New(ep.String(), ak, sk, copts...)
+	srv.service, err = oss.New(url, ak, sk, copts...)
 	if err != nil {
 		return nil, err
 	}
@@ -259,11 +270,11 @@ func (s *Storage) formatFileObject(v oss.ObjectProperties) (o *typ.Object, err e
 		o.SetEtag(v.ETag)
 	}
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if value := v.Type; value != "" {
 		sm.StorageClass = value
 	}
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return
 }
@@ -310,4 +321,13 @@ const (
 	multipartSizeMaximum = 5 * 1024 * 1024 * 1024
 	// multipartSizeMinimum is the minimum size for each part, 100KB.
 	multipartSizeMinimum = 100 * 1024
+)
+
+const (
+	// writeSizeMaximum is the maximum size for each object with a single PUT operation, 5GB.
+	// ref: https://help.aliyun.com/document_detail/31978.html#title-gkg-amg-aes
+	writeSizeMaximum = 5 * 1024 * 1024 * 1024
+	// appendSizeMaximum is the total maximum size for an append object, 5GB.
+	// ref: https://help.aliyun.com/document_detail/31981.html?spm=a2c4g.11186623.6.1684.479a3ea7S8dRgB#title-22f-5c3-0sv
+	appendTotalSizeMaximum = 5 * 1024 * 1024 * 1024
 )

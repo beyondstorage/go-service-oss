@@ -2,12 +2,14 @@ package oss
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strconv"
 	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 
+	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/headers"
 	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
 	"github.com/beyondstorage/go-storage/v4/services"
@@ -46,16 +48,27 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 }
 
 func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
+	rp := s.getAbsPath(path)
+
 	// Handle create multipart object separately.
 	if opt.HasMultipartID {
 		o = s.newObject(true)
 		o.Mode = ModePart
 		o.SetMultipartID(opt.MultipartID)
 	} else {
-		o = s.newObject(false)
-		o.Mode = ModeRead
+		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+			if !s.features.VirtualDir {
+				return
+			}
+			rp += "/"
+			o = s.newObject(true)
+			o.Mode = ModeDir
+		} else {
+			o = s.newObject(false)
+			o.Mode = ModeRead
+		}
 	}
-	o.ID = s.getAbsPath(path)
+	o.ID = rp
 	o.Path = path
 	return o
 }
@@ -94,6 +107,35 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 	return o, nil
 }
 
+func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCreateDir) (o *Object, err error) {
+	if !s.features.VirtualDir {
+		err = NewOperationNotImplementedError("create_dir")
+		return
+	}
+	rp := s.getAbsPath(path)
+
+	// Add `/` at the end of path to simulate directory.
+	// ref: https://help.aliyun.com/document_detail/31978.html#title-gkg-amg-aes
+	rp += "/"
+
+	options := make([]oss.Option, 0)
+	options = append(options, oss.ContentLength(0))
+	if opt.HasStorageClass {
+		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
+	}
+
+	err = s.bucket.PutObject(rp, nil, options...)
+	if err != nil {
+		return
+	}
+
+	o = s.newObject(true)
+	o.Path = path
+	o.ID = rp
+	o.Mode |= ModeDir
+	return
+}
+
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
@@ -124,10 +166,6 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Path = path
 	o.Mode |= ModePart
 	o.SetMultipartID(output.UploadID)
-	// set multipart restriction
-	o.SetMultipartNumberMaximum(multipartNumberMaximum)
-	o.SetMultipartNumberMaximum(multipartSizeMaximum)
-	o.SetMultipartSizeMinimum(multipartSizeMinimum)
 
 	return o, nil
 }
@@ -150,6 +188,15 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 			return
 		}
 		return
+	}
+
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return
+		}
+
+		rp += "/"
 	}
 
 	// OSS DeleteObject is idempotent, so we don't need to check NoSuchKey error.
@@ -201,6 +248,14 @@ func (s *Storage) metadata(opt pairStorageMetadata) (meta *StorageMeta) {
 	meta = NewStorageMeta()
 	meta.Name = s.bucket.BucketName
 	meta.WorkDir = s.workDir
+	// set write restriction
+	meta.SetWriteSizeMaximum(writeSizeMaximum)
+	// set append restriction
+	meta.SetAppendTotalSizeMaximum(appendTotalSizeMaximum)
+	// set multipart restrictions
+	meta.SetMultipartNumberMaximum(multipartNumberMaximum)
+	meta.SetMultipartNumberMaximum(multipartSizeMaximum)
+	meta.SetMultipartSizeMinimum(multipartSizeMinimum)
 	return
 }
 
@@ -390,6 +445,15 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		return o, nil
 	}
 
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return
+		}
+
+		rp += "/"
+	}
+
 	output, err := s.bucket.GetObjectMeta(rp)
 	if err != nil {
 		return nil, err
@@ -398,7 +462,11 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	o = s.newObject(true)
 	o.ID = rp
 	o.Path = path
-	o.Mode |= ModeRead
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		o.Mode |= ModeDir
+	} else {
+		o.Mode |= ModeRead
+	}
 
 	if v := output.Get(headers.ContentLength); v != "" {
 		size, err := strconv.ParseInt(v, 10, 64)
@@ -427,7 +495,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		o.SetContentType(v)
 	}
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if v := output.Get(storageClassHeader); v != "" {
 		sm.StorageClass = v
 	}
@@ -437,12 +505,17 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if v := output.Get(serverSideEncryptionKeyIdHeader); v != "" {
 		sm.ServerSideEncryptionKeyID = v
 	}
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return o, nil
 }
 
 func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int64, opt pairStorageWrite) (n int64, err error) {
+	if size > writeSizeMaximum {
+		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+
 	if opt.HasIoCallback {
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
@@ -500,6 +573,15 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 }
 
 func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, part *Part, err error) {
+	if index < 0 || index >= multipartNumberMaximum {
+		err = fmt.Errorf("multipart number limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+	if size > multipartSizeMaximum {
+		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+
 	imur := oss.InitiateMultipartUploadResult{
 		Bucket:   s.bucket.BucketName,
 		Key:      o.ID,

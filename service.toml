@@ -7,20 +7,24 @@ required = ["credential"]
 optional = ["service_features", "default_service_pairs", "endpoint", "http_client_options"]
 
 [namespace.storage]
-implement = ["appender", "multiparter"]
+features = ["virtual_dir"]
+implement = ["appender", "direr", "multiparter"]
 
 [namespace.storage.new]
 required = ["name"]
 optional = ["storage_features", "default_storage_pairs", "work_dir"]
 
 [namespace.storage.op.create]
-optional = ["multipart_id"]
+optional = ["multipart_id", "object_mode"]
+
+[namespace.storage.op.create_dir]
+optional = ["storage_class"]
 
 [namespace.storage.op.delete]
-optional = ["multipart_id"]
+optional = ["multipart_id", "object_mode"]
 
 [namespace.storage.op.stat]
-optional = ["multipart_id"]
+optional = ["multipart_id", "object_mode"]
 
 [namespace.storage.op.list]
 optional = ["list_mode"]
