@@ -76,34 +76,37 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorageCreateAppend) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
-	options := make([]oss.Option, 0, 3)
-	options = append(options, oss.ContentLength(0))
-	if opt.HasContentType {
-		options = append(options, oss.ContentType(opt.ContentType))
-	}
-	if opt.HasStorageClass {
-		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
-	}
-	if opt.HasServerSideEncryption {
-		options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
-	}
-	if opt.HasServerSideDataEncryption {
-		options = append(options, oss.ServerSideDataEncryption(opt.ServerSideDataEncryption))
-	}
-	if opt.HasServerSideEncryptionKeyID {
-		options = append(options, oss.ServerSideEncryptionKeyID(opt.ServerSideEncryptionKeyID))
-	}
-
-	offset, err := s.bucket.AppendObject(rp, nil, 0, options...)
+	// oss `append` doesn't support `overwrite`, so we need to check and delete the object if exists.
+	// ref: [GSP-134](https://github.com/beyondstorage/go-storage/blob/master/docs/rfcs/134-write-behavior-consistency.md)
+	isExist, err := s.bucket.IsObjectExist(rp)
 	if err != nil {
 		return
+	}
+
+	if isExist {
+		err = s.bucket.DeleteObject(rp)
+		if err != nil {
+			return
+		}
 	}
 
 	o = s.newObject(true)
 	o.Mode = ModeRead | ModeAppend
 	o.ID = rp
 	o.Path = path
-	o.SetAppendOffset(offset)
+	o.SetAppendOffset(0)
+	// set metadata
+	if opt.HasContentType {
+		o.SetContentType(opt.ContentType)
+	}
+	var sm ObjectSystemMetadata
+	if opt.HasStorageClass {
+		sm.StorageClass = opt.StorageClass
+	}
+	if opt.HasServerSideEncryption {
+		sm.ServerSideEncryption = opt.ServerSideEncryption
+	}
+
 	return o, nil
 }
 
@@ -566,6 +569,20 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 	options = append(options, oss.ContentLength(size))
 	if opt.HasContentMd5 {
 		options = append(options, oss.ContentMD5(opt.ContentMd5))
+	}
+	// Set the following metadata at the first write.
+	if 0 == offset {
+		if contentType, ok := o.GetContentType(); ok {
+			options = append(options, oss.ContentType(contentType))
+		}
+
+		sm := GetObjectSystemMetadata(o)
+		if sm.StorageClass != "" {
+			options = append(options, oss.StorageClass(oss.StorageClassType(sm.StorageClass)))
+		}
+		if sm.ServerSideEncryption != "" {
+			options = append(options, oss.ServerSideEncryption(sm.ServerSideEncryption))
+		}
 	}
 
 	offset, err = s.bucket.AppendObject(rp, r, offset, options...)

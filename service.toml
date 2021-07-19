@@ -36,7 +36,7 @@ optional = ["offset", "io_callback", "size"]
 optional = ["content_md5", "content_type", "io_callback", "storage_class", "server_side_encryption", "server_side_data_encryption", "server_side_encryption_key_id"]
 
 [namespace.storage.op.create_append]
-optional = ["content_type", "server_side_encryption", "server_side_encryption_key_id", "server_side_data_encryption", "storage_class"]
+optional = ["content_type", "server_side_encryption", "storage_class"]
 
 [namespace.storage.op.write_append]
 optional = ["content_md5", "io_callback"]
