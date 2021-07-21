@@ -1,7 +1,7 @@
 github.com/Xuanwo/templateutils v0.1.0 h1:WpkWOqQtIQ2vAIpJLa727DdN8WtxhUkkbDGa6UhntJY=
 github.com/Xuanwo/templateutils v0.1.0/go.mod h1:OdE0DJ+CJxDBq6psX5DPV+gOZi8bhuHuVUpPCG++Wb8=
-github.com/aliyun/aliyun-oss-go-sdk v2.1.8+incompatible h1:hLUNPbx10wawWW7DeNExvTrlb90db3UnnNTFKHZEFhE=
-github.com/aliyun/aliyun-oss-go-sdk v2.1.8+incompatible/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
+github.com/aliyun/aliyun-oss-go-sdk v2.1.9+incompatible h1:mO8fA9l5cQ7r0D2v3WribTT1GGbNVtnVviKM51jH6lI=
+github.com/aliyun/aliyun-oss-go-sdk v2.1.9+incompatible/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
 github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f h1:ZNv7On9kyUzm7fvRZumSyy/IUiSC7AzL0I1jKKtwooA=
 github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f/go.mod h1:AuiFmCCPBSrqvVMvuqFuk0qogytodnVFVSN5CeJB8Gc=
 github.com/beyondstorage/go-endpoint v1.0.1 h1:F8x2dGLMu9je6g7zPbKoxCXDlug97K26SeCx7KEHgyg=
