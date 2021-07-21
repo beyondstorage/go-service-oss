@@ -106,6 +106,7 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 	if opt.HasServerSideEncryption {
 		sm.ServerSideEncryption = opt.ServerSideEncryption
 	}
+	o.SetSystemMetadata(sm)
 
 	return o, nil
 }
