@@ -88,6 +88,23 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 		if err != nil {
 			return
 		}
+	} else {
+		options := make([]oss.Option, 0, 2)
+		options = append(options, oss.ContentLength(0))
+		if opt.HasContentType {
+			options = append(options, oss.ContentType(opt.ContentType))
+		}
+		if opt.HasStorageClass {
+			options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
+		}
+		if opt.HasServerSideEncryption {
+			options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
+		}
+
+		_, err = s.bucket.AppendObject(rp, nil, 0, options...)
+		if err != nil {
+			return
+		}
 	}
 
 	o = s.newObject(true)
@@ -570,20 +587,6 @@ func (s *Storage) writeAppend(ctx context.Context, o *Object, r io.Reader, size 
 	options = append(options, oss.ContentLength(size))
 	if opt.HasContentMd5 {
 		options = append(options, oss.ContentMD5(opt.ContentMd5))
-	}
-	// Set the following metadata at the first write.
-	if 0 == offset {
-		if contentType, ok := o.GetContentType(); ok {
-			options = append(options, oss.ContentType(contentType))
-		}
-
-		sm := GetObjectSystemMetadata(o)
-		if sm.StorageClass != "" {
-			options = append(options, oss.StorageClass(oss.StorageClassType(sm.StorageClass)))
-		}
-		if sm.ServerSideEncryption != "" {
-			options = append(options, oss.ServerSideEncryption(sm.ServerSideEncryption))
-		}
 	}
 
 	offset, err = s.bucket.AppendObject(rp, r, offset, options...)
