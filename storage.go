@@ -88,30 +88,30 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 		if err != nil {
 			return
 		}
-	} else {
-		options := make([]oss.Option, 0, 2)
-		options = append(options, oss.ContentLength(0))
-		if opt.HasContentType {
-			options = append(options, oss.ContentType(opt.ContentType))
-		}
-		if opt.HasStorageClass {
-			options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
-		}
-		if opt.HasServerSideEncryption {
-			options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
-		}
+	}
 
-		_, err = s.bucket.AppendObject(rp, nil, 0, options...)
-		if err != nil {
-			return
-		}
+	options := make([]oss.Option, 0, 2)
+	options = append(options, oss.ContentLength(0))
+	if opt.HasContentType {
+		options = append(options, oss.ContentType(opt.ContentType))
+	}
+	if opt.HasStorageClass {
+		options = append(options, oss.StorageClass(oss.StorageClassType(opt.StorageClass)))
+	}
+	if opt.HasServerSideEncryption {
+		options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
+	}
+
+	offset, err := s.bucket.AppendObject(rp, nil, 0, options...)
+	if err != nil {
+		return
 	}
 
 	o = s.newObject(true)
 	o.Mode = ModeRead | ModeAppend
 	o.ID = rp
 	o.Path = path
-	o.SetAppendOffset(0)
+	o.SetAppendOffset(offset)
 	// set metadata
 	if opt.HasContentType {
 		o.SetContentType(opt.ContentType)
