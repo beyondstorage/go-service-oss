@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.2.0] - 2021-07-21
+
+### Added
+
+- ci: Add gofmt action (#35)
+- ci: Add diff check action (#38)
+- ci: Add dependabot auto build support (#39)
+
+### Changed
+
+- storage: Implement GSP-134 Write Behavior Consistency (#43)
+- storage: Implement GSP-654 Unify List Behavior (#43)
+
+### Fixed
+
+- ci: Fix auto-build not work correctly
+
+### Upgraded
+
+- build(deps): Bump github.com/aliyun/aliyun-oss-go-sdk from 2.1.8+incompatible to 2.1.9+incompatible (#33)
+
 ## [v2.1.0] - 2021-06-29
 
 ### Added
@@ -52,9 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - ci: Only run Integration Test while push to master
 
-### Upgrade
+### Upgraded
 
-- Bump github.com/aliyun/aliyun-oss-go-sdk (#9)
+- build(deps): Bump github.com/aliyun/aliyun-oss-go-sdk (#9)
 
 ## v1.0.0 - 2021-02-07
 
@@ -62,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement oss services.
 
+[v2.2.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/beyondstorage/go-service-oss/compare/v1.1.0...v2.0.0
 [v1.1.0]: https://github.com/beyondstorage/go-service-oss/compare/v1.0.0...v1.1.0

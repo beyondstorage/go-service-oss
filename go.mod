@@ -3,7 +3,7 @@ module github.com/beyondstorage/go-service-oss/v2
 go 1.14
 
 require (
-	github.com/aliyun/aliyun-oss-go-sdk v2.1.8+incompatible
+	github.com/aliyun/aliyun-oss-go-sdk v2.1.9+incompatible
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/beyondstorage/go-endpoint v1.0.1
 	github.com/beyondstorage/go-integration-test/v4 v4.2.0
