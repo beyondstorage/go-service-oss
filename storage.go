@@ -76,7 +76,21 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorageCreateAppend) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
-	options := make([]oss.Option, 0, 3)
+	// oss `append` doesn't support `overwrite`, so we need to check and delete the object if exists.
+	// ref: [GSP-134](https://github.com/beyondstorage/go-storage/blob/master/docs/rfcs/134-write-behavior-consistency.md)
+	isExist, err := s.bucket.IsObjectExist(rp)
+	if err != nil {
+		return
+	}
+
+	if isExist {
+		err = s.bucket.DeleteObject(rp)
+		if err != nil {
+			return
+		}
+	}
+
+	options := make([]oss.Option, 0, 2)
 	options = append(options, oss.ContentLength(0))
 	if opt.HasContentType {
 		options = append(options, oss.ContentType(opt.ContentType))
@@ -86,12 +100,6 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 	}
 	if opt.HasServerSideEncryption {
 		options = append(options, oss.ServerSideEncryption(opt.ServerSideEncryption))
-	}
-	if opt.HasServerSideDataEncryption {
-		options = append(options, oss.ServerSideDataEncryption(opt.ServerSideDataEncryption))
-	}
-	if opt.HasServerSideEncryptionKeyID {
-		options = append(options, oss.ServerSideEncryptionKeyID(opt.ServerSideEncryptionKeyID))
 	}
 
 	offset, err := s.bucket.AppendObject(rp, nil, 0, options...)
@@ -104,6 +112,19 @@ func (s *Storage) createAppend(ctx context.Context, path string, opt pairStorage
 	o.ID = rp
 	o.Path = path
 	o.SetAppendOffset(offset)
+	// set metadata
+	if opt.HasContentType {
+		o.SetContentType(opt.ContentType)
+	}
+	var sm ObjectSystemMetadata
+	if opt.HasStorageClass {
+		sm.StorageClass = opt.StorageClass
+	}
+	if opt.HasServerSideEncryption {
+		sm.ServerSideEncryption = opt.ServerSideEncryption
+	}
+	o.SetSystemMetadata(sm)
+
 	return o, nil
 }
 
@@ -215,6 +236,12 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 	input := &objectPageStatus{
 		maxKeys: 200,
 		prefix:  s.getAbsPath(path),
+	}
+
+	if !opt.HasListMode {
+		// Support `ListModePrefix` as the default `ListMode`.
+		// ref: [GSP-654](https://github.com/beyondstorage/go-storage/blob/master/docs/rfcs/654-unify-list-behavior.md)
+		opt.ListMode = ListModePrefix
 	}
 
 	var nextFn NextObjectFunc

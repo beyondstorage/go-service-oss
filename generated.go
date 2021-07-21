@@ -645,17 +645,13 @@ func (s *Storage) parsePairStorageCreate(opts []Pair) (pairStorageCreate, error)
 
 // pairStorageCreateAppend is the parsed struct
 type pairStorageCreateAppend struct {
-	pairs                        []Pair
-	HasContentType               bool
-	ContentType                  string
-	HasServerSideDataEncryption  bool
-	ServerSideDataEncryption     string
-	HasServerSideEncryption      bool
-	ServerSideEncryption         string
-	HasServerSideEncryptionKeyID bool
-	ServerSideEncryptionKeyID    string
-	HasStorageClass              bool
-	StorageClass                 string
+	pairs                   []Pair
+	HasContentType          bool
+	ContentType             string
+	HasServerSideEncryption bool
+	ServerSideEncryption    string
+	HasStorageClass         bool
+	StorageClass            string
 }
 
 // parsePairStorageCreateAppend will parse Pair slice into *pairStorageCreateAppend
@@ -673,26 +669,12 @@ func (s *Storage) parsePairStorageCreateAppend(opts []Pair) (pairStorageCreateAp
 			result.HasContentType = true
 			result.ContentType = v.Value.(string)
 			continue
-		case "server_side_data_encryption":
-			if result.HasServerSideDataEncryption {
-				continue
-			}
-			result.HasServerSideDataEncryption = true
-			result.ServerSideDataEncryption = v.Value.(string)
-			continue
 		case "server_side_encryption":
 			if result.HasServerSideEncryption {
 				continue
 			}
 			result.HasServerSideEncryption = true
 			result.ServerSideEncryption = v.Value.(string)
-			continue
-		case "server_side_encryption_key_id":
-			if result.HasServerSideEncryptionKeyID {
-				continue
-			}
-			result.HasServerSideEncryptionKeyID = true
-			result.ServerSideEncryptionKeyID = v.Value.(string)
 			continue
 		case "storage_class":
 			if result.HasStorageClass {
