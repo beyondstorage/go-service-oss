@@ -161,17 +161,19 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 	rt := s.getAbsPath(target)
 	rp := s.getAbsPath(path)
 
-	o = s.newObject(true)
-	o.ID = rp
-	o.Path = path
-	o.SetLinkTarget("/" + rt)
-	o.Mode |= ModeLink
-
 	// oss `symlink` supports `overwrite`, so we don't need to check if path exists.
 	err = s.bucket.PutSymlink(rp, rt)
 	if err != nil {
 		return nil, err
 	}
+
+	o = s.newObject(true)
+	o.ID = rp
+	o.Path = path
+	// oss does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+	// To ensure that the path matches the one the user gets, we should re-add `/` here.
+	o.SetLinkTarget("/" + rt)
+	o.Mode |= ModeLink
 
 	return
 }
