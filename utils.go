@@ -43,6 +43,7 @@ type Storage struct {
 	typ.UnimplementedAppender
 	typ.UnimplementedMultiparter
 	typ.UnimplementedDirer
+	typ.UnimplementedLinker
 }
 
 // String implements Storager.String

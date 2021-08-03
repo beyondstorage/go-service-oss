@@ -157,6 +157,25 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	return
 }
 
+func (s *Storage) createLink(ctx context.Context, path string, target string, opt pairStorageCreateLink) (o *Object, err error) {
+	rt := s.getAbsPath(target)
+	rp := s.getAbsPath(path)
+
+	o = s.newObject(true)
+	o.ID = rp
+	o.Path = path
+	o.SetLinkTarget("/" + rt)
+	o.Mode |= ModeLink
+
+	// oss `symlink` supports `overwrite`, so we don't need to check if path exists.
+	err = s.bucket.PutSymlink(rp, rt)
+	if err != nil {
+		return nil, err
+	}
+
+	return
+}
+
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
@@ -453,6 +472,20 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 
 func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o *Object, err error) {
 	rp := s.getAbsPath(path)
+
+	if symlink, err := s.bucket.GetSymlink(rp); err == nil {
+		// The path is a symlink.
+		o = s.newObject(true)
+		o.ID = rp
+		o.Path = path
+
+		target := symlink.Get(oss.HTTPHeaderOssSymlinkTarget)
+		o.SetLinkTarget("/" + target)
+
+		o.Mode |= ModeLink
+
+		return o, nil
+	}
 
 	if opt.HasMultipartID {
 		_, err = s.bucket.ListUploadedParts(oss.InitiateMultipartUploadResult{

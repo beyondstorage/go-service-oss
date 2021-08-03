@@ -8,7 +8,7 @@ optional = ["service_features", "default_service_pairs", "endpoint", "http_clien
 
 [namespace.storage]
 features = ["virtual_dir"]
-implement = ["appender", "direr", "multiparter"]
+implement = ["appender", "direr", "multiparter", "linker"]
 
 [namespace.storage.new]
 required = ["name"]
