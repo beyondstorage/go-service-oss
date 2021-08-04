@@ -255,7 +255,11 @@ func (s *Storage) formatFileObject(v oss.ObjectProperties) (o *typ.Object, err e
 	o = s.newObject(false)
 	o.ID = v.Key
 	o.Path = s.getRelPath(v.Key)
-	o.Mode |= typ.ModeRead
+	if v.Type == "Symlink" {
+		o.Mode |= typ.ModeLink
+	} else {
+		o.Mode |= typ.ModeRead
+	}
 
 	o.SetContentLength(v.Size)
 	o.SetLastModified(v.LastModified)
