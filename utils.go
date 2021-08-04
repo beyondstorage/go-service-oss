@@ -43,6 +43,7 @@ type Storage struct {
 	typ.UnimplementedAppender
 	typ.UnimplementedMultiparter
 	typ.UnimplementedDirer
+	typ.UnimplementedLinker
 }
 
 // String implements Storager.String
@@ -254,14 +255,14 @@ func (s *Storage) formatFileObject(v oss.ObjectProperties) (o *typ.Object, err e
 	o = s.newObject(false)
 	o.ID = v.Key
 	o.Path = s.getRelPath(v.Key)
-	o.Mode |= typ.ModeRead
+	if v.Type == "Symlink" {
+		o.Mode |= typ.ModeLink
+	} else {
+		o.Mode |= typ.ModeRead
+	}
 
 	o.SetContentLength(v.Size)
 	o.SetLastModified(v.LastModified)
-
-	if v.Type != "" {
-		o.SetContentType(v.Type)
-	}
 
 	// OSS advise us don't use Etag as Content-MD5.
 	//
