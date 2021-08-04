@@ -264,10 +264,6 @@ func (s *Storage) formatFileObject(v oss.ObjectProperties) (o *typ.Object, err e
 	o.SetContentLength(v.Size)
 	o.SetLastModified(v.LastModified)
 
-	if v.Type != "" {
-		o.SetContentType(v.Type)
-	}
-
 	// OSS advise us don't use Etag as Content-MD5.
 	//
 	// ref: https://help.aliyun.com/document_detail/31965.html
