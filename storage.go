@@ -302,7 +302,7 @@ func (s *Storage) metadata(opt pairStorageMetadata) (meta *StorageMeta) {
 	meta.SetAppendTotalSizeMaximum(appendTotalSizeMaximum)
 	// set multipart restrictions
 	meta.SetMultipartNumberMaximum(multipartNumberMaximum)
-	meta.SetMultipartNumberMaximum(multipartSizeMaximum)
+	meta.SetMultipartSizeMaximum(multipartSizeMaximum)
 	meta.SetMultipartSizeMinimum(multipartSizeMinimum)
 	return
 }
