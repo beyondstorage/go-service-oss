@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.3.0] - 2021-08-16
+
+### Added
+
+- feat: Implement CreateLink and setup linker test in go-service-oss (#48)
+
+### Fixed
+
+- storage: Fix wrong method call when set multipart size maximum in metadata (#51)
+
+### Upgraded
+
+- build(deps): bump github.com/beyondstorage/go-storage/v4 from 4.3.2 to 4.4.0 (#45)
+- build(deps): bump github.com/aliyun/aliyun-oss-go-sdk (#49)
+
 ## [v2.2.0] - 2021-07-21
 
 ### Added
@@ -83,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement oss services.
 
+[v2.3.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.2.0...v2.3.0
 [v2.2.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/beyondstorage/go-service-oss/compare/v1.1.0...v2.0.0
