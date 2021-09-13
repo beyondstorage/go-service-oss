@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.4.0] - 2021-09-13
+
+### Changed
+
+- ci: Upgrade go version to 1.16
+- ci: Enable auto merge for dependabot
+- ci: Cleanup Service Integration Tests (#54)
+- docs: Update README (#55)
+
 ## [v2.3.0] - 2021-08-16
 
 ### Added
@@ -98,6 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement oss services.
 
+[v2.4.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.3.0...v2.4.0
 [v2.3.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.2.0...v2.3.0
 [v2.2.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/beyondstorage/go-service-oss/compare/v2.0.0...v2.1.0
