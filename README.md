@@ -1,11 +1,14 @@
-[![Build Status](https://github.com/beyondstorage/go-service-oss/workflows/Unit%20Test/badge.svg?branch=master)](https://github.com/beyondstorage/go-service-oss/actions?query=workflow%3A%22Unit+Test%22)
-[![Integration Tests](https://teamcity.beyondstorage.io/app/rest/builds/buildType:(id:Services_Oss_IntegrationTests)/statusIcon)](https://teamcity.beyondstorage.io/buildConfiguration/Services_Oss_IntegrationTests)
-[![License](https://img.shields.io/badge/license-apache%20v2-blue.svg)](https://github.com/Xuanwo/storage/blob/master/LICENSE)
-[![](https://img.shields.io/matrix/beyondstorage@go-service-oss:matrix.org.svg?logo=matrix)](https://matrix.to/#/#beyondstorage@go-service-oss:matrix.org)
-
 # go-services-oss
 
 [Aliyun Object Storage](https://cn.aliyun.com/product/oss) service support for [go-storage](https://github.com/beyondstorage/go-storage).
+
+## Notes
+
+**This package has been moved to [go-storage](https://github.com/beyondstorage/go-storage/tree/master/services/oss).**
+
+```shell
+go get go.beyondstorage.io/services/oss/v3
+```
 
 ## Install
 
